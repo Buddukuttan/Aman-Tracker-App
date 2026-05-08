@@ -3,12 +3,13 @@ import { db } from '../lib/firebase';
 import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { getISTBoundaries, formatIST } from '../lib/utils';
-import { IndianRupee, TrendingUp, Calendar, Clock } from 'lucide-react';
+import { IndianRupee, TrendingUp, Calendar, Clock, AlertTriangle } from 'lucide-react';
 
 const Dashboard = () => {
   const { user } = useAuth();
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [stats, setStats] = useState({ today: 0, week: 0, month: 0 });
   const [categoryBreakdown, setCategoryBreakdown] = useState({});
 
@@ -17,8 +18,6 @@ const Dashboard = () => {
 
     const { today, week, month } = getISTBoundaries();
 
-    // Using a simpler query first to avoid index requirements if possible,
-    // though for Dashboard we really need the latest entries.
     const q = query(
       collection(db, 'expenses'),
       where('userId', '==', user.uid),
@@ -33,11 +32,8 @@ const Dashboard = () => {
 
       setExpenses(docs);
 
-      // Calculate Stats
       let tTotal = 0, wTotal = 0, mTotal = 0;
       const breakdown = {};
-
-      const now = new Date();
 
       docs.forEach(exp => {
         const date = exp.timestamp?.toDate() || new Date(exp.dateIST);
@@ -54,6 +50,15 @@ const Dashboard = () => {
       setStats({ today: tTotal, week: wTotal, month: mTotal });
       setCategoryBreakdown(breakdown);
       setLoading(false);
+      setError(null);
+    }, (err) => {
+      console.error("Firestore error:", err);
+      if (err.code === 'failed-precondition') {
+        setError("Index missing. Please check FIREBASE_SETUP.md and create the required index in Firebase Console.");
+      } else {
+        setError("Failed to load data. Check your Firebase rules.");
+      }
+      setLoading(false);
     });
 
     return () => unsubscribe();
@@ -64,6 +69,13 @@ const Dashboard = () => {
   return (
     <div className="flex flex-col h-full max-w-md mx-auto p-6 pt-12 space-y-8 pb-24">
       <h1 className="text-3xl font-bold font-display">Dashboard</h1>
+
+      {error && (
+        <div className="bg-amber-500/10 border border-amber-500/20 text-amber-600 p-5 rounded-3xl flex items-start gap-4 text-sm leading-relaxed">
+          <AlertTriangle className="w-6 h-6 flex-shrink-0 mt-0.5" />
+          <p>{error}</p>
+        </div>
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 gap-4">
