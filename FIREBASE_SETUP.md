@@ -1,55 +1,29 @@
-# 🔥 Firebase Setup & Hosting Instructions for Ka-Ching!
+# 🔥 Hosting Ka-Ching!
 
-Follow these steps to set up your Firebase project and host the app:
+Your app is now fully configured with your Firebase credentials and ready to go!
 
-## 1. Create a Firebase Project
-1. Go to [Firebase Console](https://console.firebase.google.com/).
-2. Create a new project (e.g., "Ka-Ching").
+## Option 1: Firebase Hosting (Recommended)
+This is the best way since you're already using Firebase for Auth and DB.
+1. Install CLI: `npm install -g firebase-tools`
+2. Run: `npm run build`
+3. Run: `firebase deploy`
+4. **Done!** Your app will be live at `https://aman-tracker-app.web.app`
 
-## 2. Enable Authentication
-1. Click **Authentication** -> **Get started**.
-2. Enable **Google** sign-in provider.
+## Option 2: Vercel (Easiest / One-Click)
+If you find the CLI too complex, Vercel is a great alternative:
+1. Push this code to a **GitHub repository**.
+2. Go to [vercel.com](https://vercel.com) and sign in with GitHub.
+3. Click **"Add New"** -> **"Project"**.
+4. Import your repository.
+5. Click **"Deploy"**.
+6. Vercel will give you a free `vercel.app` URL and automatically update every time you push code.
 
-## 3. Create a Firestore Database
-1. Click **Firestore Database** -> **Create database**.
-2. Start in **Production mode**.
-3. Update your **Rules** to:
-   ```
-   rules_version = '2';
-   service cloud.firestore {
-     match /databases/{database}/documents {
-       match /expenses/{expenseId} {
-         allow read, write: if request.auth != null && request.resource.data.userId == request.auth.uid;
-         allow read, delete: if request.auth != null && resource.data.userId == request.auth.uid;
-       }
-     }
-   }
-   ```
+## ⚠️ Important Firestore Note
+Regardless of where you host, you **must** create a composite index in your Firebase Console for the Dashboard to work:
+1. Go to **Firestore** -> **Indexes** tab.
+2. Collection: `expenses`
+3. Fields: `userId` (Ascending) and `timestamp` (Descending).
+4. Click **Create Index**.
 
-## 4. ⚠️ CRITICAL: Create Firestore Index
-The Dashboard requires a composite index to sort your expenses by date.
-1. Go to the **Indexes** tab in Firestore.
-2. Click **Add Index**.
-3. Collection ID: `expenses`
-4. Fields to index:
-   - `userId`: **Ascending**
-   - `timestamp`: **Descending**
-5. Query scope: **Collection**
-6. Click **Create Index** (this may take a few minutes).
-
-## 5. Get Credentials
-1. Go to **Project Settings** -> **General**.
-2. Scroll to **Your apps** and add a **Web app**.
-3. Copy the `firebaseConfig` object and paste it into `src/lib/firebase.js`.
-
-## 6. Deployment
-Ensure you have the Firebase CLI installed (`npm install -g firebase-tools`).
-```bash
-npm run build
-firebase login
-firebase init hosting # Select your project, dist folder, and SPA
-firebase deploy
-```
-
-Once deployed, your app will be live at:
-**https://your-project-id.web.app**
+## ⚠️ PWA Warning
+For the "Add to Home Screen" feature to work, the website **must** be served over HTTPS (both Firebase and Vercel do this automatically).
