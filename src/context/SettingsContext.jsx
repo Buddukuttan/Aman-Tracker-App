@@ -20,7 +20,20 @@ export const SettingsProvider = ({ children }) => {
 
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('kaching_darkMode');
-    return saved ? JSON.parse(saved) : true; // Dark mode by default
+    return saved ? JSON.parse(saved) : true;
+  });
+
+  const [colorScheme, setColorScheme] = useState(() => {
+    return localStorage.getItem('kaching_colorScheme') || 'indigo';
+  });
+
+  const [budgetEnabled, setBudgetEnabled] = useState(() => {
+    return localStorage.getItem('kaching_budgetEnabled') === 'true';
+  });
+
+  const [dailyBudget, setDailyBudget] = useState(() => {
+    const saved = localStorage.getItem('kaching_dailyBudget');
+    return saved ? Number(saved) : 500;
   });
 
   useEffect(() => {
@@ -33,23 +46,29 @@ export const SettingsProvider = ({ children }) => {
 
   useEffect(() => {
     localStorage.setItem('kaching_darkMode', JSON.stringify(darkMode));
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    if (darkMode) document.documentElement.classList.add('dark');
+    else document.documentElement.classList.remove('dark');
   }, [darkMode]);
 
+  useEffect(() => {
+    localStorage.setItem('kaching_colorScheme', colorScheme);
+    document.documentElement.setAttribute('data-theme', colorScheme);
+  }, [colorScheme]);
+
+  useEffect(() => {
+    localStorage.setItem('kaching_budgetEnabled', budgetEnabled);
+  }, [budgetEnabled]);
+
+  useEffect(() => {
+    localStorage.setItem('kaching_dailyBudget', dailyBudget.toString());
+  }, [dailyBudget]);
+
   const addCategory = (name) => {
-    if (name && !categories.includes(name)) {
-      setCategories([...categories, name]);
-    }
+    if (name && !categories.includes(name)) setCategories([...categories, name]);
   };
 
   const removeCategory = (name) => {
-    if (categories.length > 1) {
-      setCategories(categories.filter(c => c !== name));
-    }
+    if (categories.length > 1) setCategories(categories.filter(c => c !== name));
   };
 
   const updateQuickAmount = (index, amount) => {
@@ -59,14 +78,12 @@ export const SettingsProvider = ({ children }) => {
   };
 
   const value = {
-    categories,
-    addCategory,
-    removeCategory,
-    quickAmounts,
-    updateQuickAmount,
-    darkMode,
-    setDarkMode,
-    setCategories // for advanced editing
+    categories, addCategory, removeCategory, setCategories,
+    quickAmounts, updateQuickAmount,
+    darkMode, setDarkMode,
+    colorScheme, setColorScheme,
+    budgetEnabled, setBudgetEnabled,
+    dailyBudget, setDailyBudget
   };
 
   return (
