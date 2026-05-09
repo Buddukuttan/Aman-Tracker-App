@@ -7,7 +7,7 @@ import { formatIST } from '../lib/utils';
 import * as XLSX from 'xlsx';
 import { motion } from 'framer-motion';
 import {
-  LogOut, Moon, Sun, Plus, Trash2, Download, BookOpen,
+  LogOut, Plus, Trash2, Download, BookOpen,
   ChevronRight, X, Smartphone, Fingerprint, Edit2, Check,
   Palette, Target, Wallet
 } from 'lucide-react';
@@ -17,7 +17,6 @@ const Settings = () => {
   const {
     categories, addCategory, removeCategory, setCategories,
     quickAmounts, updateQuickAmount,
-    darkMode, setDarkMode,
     colorScheme, setColorScheme,
     budgetEnabled, setBudgetEnabled,
     dailyBudget, setDailyBudget
@@ -29,12 +28,12 @@ const Settings = () => {
   const [exporting, setExporting] = useState(false);
   const [activeTutorial, setActiveTutorial] = useState(null);
 
-  const schemes = [
-    { id: 'indigo', color: '#6366f1', label: 'Indigo' },
-    { id: 'emerald', color: '#10b981', label: 'Emerald' },
-    { id: 'rose', color: '#f43f5e', label: 'Rose' },
-    { id: 'ocean', color: '#0ea5e9', label: 'Ocean' },
-    { id: 'sunset', color: '#f59e0b', label: 'Sunset' }
+  const luxuryThemes = [
+    { id: 'qatar', name: 'Qatar Airways', colors: ['#4b0d1a', '#c4a46d'] },
+    { id: 'onyx', name: 'Midnight Onyx', colors: ['#000000', '#ffd700'] },
+    { id: 'emerald', name: 'Royal Emerald', colors: ['#064e3b', '#d1d5db'] },
+    { id: 'nordic', name: 'Nordic Slate', colors: ['#1e293b', '#fb923c'] },
+    { id: 'champagne', name: 'Champagne', colors: ['#f8fafc', '#9f1239'] }
   ];
 
   const handleExport = async () => {
@@ -58,12 +57,9 @@ const Settings = () => {
 
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), 'Master Sheet');
-      [...new Set(data.map(item => item.Category))].forEach(cat => {
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.filter(item => item.Category === cat)), cat.substring(0, 31));
-      });
-      XLSX.writeFile(wb, `KaChing_Expenses_${formatIST(new Date(), 'yyyy-MM-dd')}.xlsx`);
+      XLSX.writeFile(wb, `KaChing_Luxury_${formatIST(new Date(), 'yyyy-MM-dd')}.xlsx`);
     } catch (error) {
-      alert("Export failed. Please check your Firestore index.");
+      alert("Export failed.");
     } finally {
       setExporting(false);
     }
@@ -77,43 +73,35 @@ const Settings = () => {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="flex flex-col h-full max-w-md mx-auto p-6 pt-12 space-y-8 pb-32"
-    >
-      <h1 className="text-3xl font-bold font-display">Settings</h1>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col h-full max-w-md mx-auto p-6 pt-12 space-y-8 pb-32">
+      <header>
+        <h1 className="text-3xl font-bold font-display tracking-tight">Luxury Suite</h1>
+        <p className="text-foreground/40 text-sm font-medium">Customize your financial experience</p>
+      </header>
 
-      {/* Theme & Mode */}
+      {/* Theme Selector */}
       <div className="space-y-4">
         <h2 className="text-xs font-bold text-foreground/40 uppercase tracking-[0.2em] ml-1 flex items-center gap-2">
-          <Palette className="w-3 h-3" /> Appearance
+          <Palette className="w-3 h-3" /> Visual Theme
         </h2>
-        <div className="bg-foreground/5 p-2 rounded-3xl flex">
-          <button
-            onClick={() => setDarkMode(false)}
-            className={`flex-1 flex items-center justify-center py-3 space-x-2 rounded-2xl transition-all ${!darkMode ? 'bg-white dark:bg-zinc-800 shadow-sm text-primary' : 'text-foreground/40'}`}
-          >
-            <Sun className="w-4 h-4" />
-            <span className="font-bold text-xs">Light</span>
-          </button>
-          <button
-            onClick={() => setDarkMode(true)}
-            className={`flex-1 flex items-center justify-center py-3 space-x-2 rounded-2xl transition-all ${darkMode ? 'bg-zinc-800 shadow-sm text-primary' : 'text-foreground/40'}`}
-          >
-            <Moon className="w-4 h-4" />
-            <span className="font-bold text-xs">Dark</span>
-          </button>
-        </div>
-
-        <div className="flex justify-between px-2">
-          {schemes.map((s) => (
+        <div className="grid grid-cols-1 gap-3">
+          {luxuryThemes.map((theme) => (
             <button
-              key={s.id}
-              onClick={() => setColorScheme(s.id)}
-              className={`w-10 h-10 rounded-full border-2 transition-all ${colorScheme === s.id ? 'scale-125 border-primary shadow-lg' : 'border-transparent opacity-60'}`}
-              style={{ backgroundColor: s.color }}
-            />
+              key={theme.id}
+              onClick={() => setColorScheme(theme.id)}
+              className={`flex items-center justify-between p-5 rounded-[24px] transition-all border-2 ${
+                colorScheme === theme.id ? 'border-primary bg-primary/5 shadow-lg' : 'border-foreground/5 bg-foreground/5 opacity-60'
+              }`}
+            >
+              <div className="flex items-center gap-4">
+                <div className="flex -space-x-2">
+                  <div className="w-6 h-6 rounded-full border border-background shadow-sm" style={{ backgroundColor: theme.colors[0] }} />
+                  <div className="w-6 h-6 rounded-full border border-background shadow-sm" style={{ backgroundColor: theme.colors[1] }} />
+                </div>
+                <span className={`font-bold ${colorScheme === theme.id ? 'text-primary' : ''}`}>{theme.name}</span>
+              </div>
+              {colorScheme === theme.id && <Check className="w-5 h-5 text-primary" />}
+            </button>
           ))}
         </div>
       </div>
@@ -121,67 +109,37 @@ const Settings = () => {
       {/* Daily Budget */}
       <div className="space-y-4">
         <h2 className="text-xs font-bold text-foreground/40 uppercase tracking-[0.2em] ml-1 flex items-center gap-2">
-          <Target className="w-3 h-3" /> Smart Budget
+          <Target className="w-3 h-3" /> Dynamic Allocation
         </h2>
-        <div className="bg-foreground/5 p-5 rounded-[32px] space-y-4">
+        <div className="bg-foreground/5 p-6 rounded-[32px] space-y-5 border border-foreground/5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/10 rounded-xl">
-                <Wallet className="w-5 h-5 text-primary" />
-              </div>
-              <span className="font-bold">Enable Daily Budget</span>
+              <div className="p-2 bg-primary/10 rounded-xl"><Wallet className="w-5 h-5 text-primary" /></div>
+              <span className="font-bold">Smart Daily Budget</span>
             </div>
-            <button
-              onClick={() => setBudgetEnabled(!budgetEnabled)}
-              className={`w-12 h-6 rounded-full transition-colors relative ${budgetEnabled ? 'bg-primary' : 'bg-foreground/20'}`}
-            >
+            <button onClick={() => setBudgetEnabled(!budgetEnabled)} className={`w-12 h-6 rounded-full transition-colors relative ${budgetEnabled ? 'bg-primary' : 'bg-foreground/20'}`}>
               <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${budgetEnabled ? 'left-7' : 'left-1'}`} />
             </button>
           </div>
-
           {budgetEnabled && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
-              <label className="text-[10px] font-bold text-foreground/40 uppercase mb-2 block">Monthly Allocation / Days</label>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-foreground/40">₹</span>
-                <input
-                  type="number"
-                  value={dailyBudget}
-                  onChange={(e) => setDailyBudget(e.target.value)}
-                  className="w-full bg-white dark:bg-black/20 rounded-2xl py-4 px-10 font-bold outline-none ring-1 ring-foreground/5 focus:ring-primary"
-                />
-              </div>
+              <input type="number" value={dailyBudget} onChange={(e) => setDailyBudget(e.target.value)} className="w-full bg-background/50 rounded-2xl py-4 px-6 font-bold outline-none ring-1 ring-foreground/5 focus:ring-primary text-xl" />
+              <p className="text-[10px] text-foreground/30 mt-2 font-bold uppercase tracking-wider text-center">Standard Daily Allowance (₹)</p>
             </motion.div>
           )}
         </div>
       </div>
 
-      {/* Quick Amounts */}
+      {/* My Categories */}
       <div className="space-y-4">
-        <h2 className="text-xs font-bold text-foreground/40 uppercase tracking-[0.2em] ml-1">Quick Tap Amounts</h2>
-        <div className="grid grid-cols-4 gap-2">
-          {quickAmounts.map((amt, i) => (
-            <input
-              key={i}
-              type="number"
-              value={amt}
-              onChange={(e) => updateQuickAmount(i, e.target.value)}
-              className="bg-foreground/5 rounded-2xl py-3 font-bold text-center outline-none focus:ring-2 ring-primary/50 text-xs"
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* Categories */}
-      <div className="space-y-4">
-        <h2 className="text-xs font-bold text-foreground/40 uppercase tracking-[0.2em] ml-1">My Categories</h2>
+        <h2 className="text-xs font-bold text-foreground/40 uppercase tracking-[0.2em] ml-1">Asset Classes</h2>
         <div className="space-y-2">
           {categories.map((cat) => (
-            <div key={cat} className="flex items-center justify-between bg-foreground/5 p-4 rounded-2xl group">
+            <div key={cat} className="flex items-center justify-between bg-foreground/5 p-4 rounded-2xl border border-foreground/5 group">
               {editingCategory === cat ? (
                 <div className="flex-1 flex items-center gap-2">
-                  <input autoFocus value={editValue} onChange={(e) => setEditValue(e.target.value)} onBlur={() => handleRename(cat)} onKeyDown={(e) => e.key === 'Enter' && handleRename(cat)} className="flex-1 bg-white dark:bg-zinc-800 px-3 py-2 rounded-xl outline-none ring-1 ring-primary" />
-                  <button onClick={() => handleRename(cat)} className="text-primary p-2"><Check className="w-5 h-5" /></button>
+                  <input autoFocus value={editValue} onChange={(e) => setEditValue(e.target.value)} onBlur={() => handleRename(cat)} onKeyDown={(e) => e.key === 'Enter' && handleRename(cat)} className="flex-1 bg-background px-3 py-2 rounded-xl outline-none ring-1 ring-primary" />
+                  <button onClick={() => handleRename(cat)} className="text-primary"><Check className="w-5 h-5" /></button>
                 </div>
               ) : (
                 <>
@@ -196,49 +154,15 @@ const Settings = () => {
           ))}
           <div className="flex gap-2 mt-2">
             <input type="text" placeholder="Add Category" value={newCategory} onChange={(e) => setNewCategory(e.target.value)} className="flex-1 bg-foreground/5 rounded-2xl py-4 px-6 outline-none focus:ring-2 ring-primary/50" />
-            <button onClick={() => { if (newCategory.trim()) { addCategory(newCategory.trim()); setNewCategory(''); } }} className="bg-primary text-white p-4 rounded-2xl active:scale-95 transition-transform"><Plus className="w-6 h-6" /></button>
+            <button onClick={() => { if (newCategory.trim()) { addCategory(newCategory.trim()); setNewCategory(''); } }} className="bg-primary text-primary-foreground p-4 rounded-2xl active:scale-95 transition-transform"><Plus className="w-6 h-6" /></button>
           </div>
         </div>
       </div>
 
-      <div className="space-y-3 pt-4">
-        <button onClick={() => setActiveTutorial('pwa')} className="w-full flex items-center justify-between bg-foreground/5 p-5 rounded-3xl font-bold active:bg-foreground/10 transition-colors"><div className="flex items-center gap-3"><BookOpen className="w-5 h-5 text-primary" />Tutorial: Add to Home Screen</div><ChevronRight className="w-5 h-5 text-foreground/20" /></button>
-        <button onClick={() => setActiveTutorial('backtap')} className="w-full flex items-center justify-between bg-foreground/5 p-5 rounded-3xl font-bold active:bg-foreground/10 transition-colors"><div className="flex items-center gap-3"><Smartphone className="w-5 h-5 text-primary" />Tutorial: Back Tap Shortcut</div><ChevronRight className="w-5 h-5 text-foreground/20" /></button>
-        <button onClick={handleExport} disabled={exporting} className="w-full flex items-center justify-between bg-foreground/5 p-5 rounded-3xl font-bold active:bg-foreground/10 disabled:opacity-50 transition-colors"><div className="flex items-center gap-3"><Download className="w-5 h-5 text-green-500" />{exporting ? 'Generating Excel...' : 'Export to Excel'}</div><ChevronRight className="w-5 h-5 text-foreground/20" /></button>
+      <div className="space-y-3 pt-4 pb-20">
+        <button onClick={handleExport} disabled={exporting} className="w-full flex items-center justify-between bg-foreground/5 p-5 rounded-3xl font-bold active:bg-foreground/10 transition-colors"><div className="flex items-center gap-3"><Download className="w-5 h-5 text-primary" />Export Data</div><ChevronRight className="w-5 h-5 text-foreground/20" /></button>
         <button onClick={logout} className="w-full flex items-center justify-between bg-red-500/10 p-5 rounded-3xl font-bold text-red-500 active:bg-red-500/20 transition-colors"><div className="flex items-center gap-3"><LogOut className="w-5 h-5" />Sign Out</div></button>
       </div>
-
-      {activeTutorial && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-4">
-          <div className="bg-background w-full max-w-sm rounded-[40px] p-8 space-y-6 relative max-h-[85vh] overflow-y-auto">
-            <button onClick={() => setActiveTutorial(null)} className="absolute right-6 top-6 p-2 bg-foreground/5 rounded-full"><X className="w-5 h-5" /></button>
-            <h3 className="text-2xl font-bold font-display pt-2">{activeTutorial === 'pwa' ? "Add to Home Screen" : "Set Up Back Tap Shortcut"}</h3>
-            <div className="space-y-4">
-              {(activeTutorial === 'pwa' ? [
-                { icon: <Smartphone className="w-6 h-6" />, text: "Open the app in Safari on your iPhone" },
-                { icon: <ChevronRight className="rotate-90 w-6 h-6" />, text: "Tap the Share button at the bottom" },
-                { icon: <Plus className="w-6 h-6" />, text: "Tap 'Add to Home Screen'" },
-                { text: "Give it a name and tap 'Add'" }
-              ] : [
-                { text: "Open iPhone Shortcuts app" },
-                { icon: <Plus className="w-6 h-6" />, text: "Create new 'Open App' shortcut" },
-                { text: "Select 'Ka-Ching'" },
-                { text: "Go to Settings → Accessibility → Touch → Back Tap" },
-                { text: "Select your new shortcut" }
-              ]).map((step, i) => (
-                <div key={i} className="flex gap-4 items-start">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm">{i + 1}</div>
-                  <div className="flex-1 space-y-2">
-                    <p className="font-medium text-foreground/80 leading-snug">{step.text}</p>
-                    {step.icon && <div className="w-fit p-3 bg-foreground/5 rounded-2xl text-primary">{step.icon}</div>}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <button onClick={() => setActiveTutorial(null)} className="w-full py-4 bg-primary text-white rounded-2xl font-bold mt-4 active:scale-95 transition-transform">Got it!</button>
-          </div>
-        </div>
-      )}
     </motion.div>
   );
 };

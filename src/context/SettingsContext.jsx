@@ -18,13 +18,8 @@ export const SettingsProvider = ({ children }) => {
     return saved ? JSON.parse(saved) : DEFAULT_QUICK_AMOUNTS;
   });
 
-  const [darkMode, setDarkMode] = useState(() => {
-    const saved = localStorage.getItem('kaching_darkMode');
-    return saved ? JSON.parse(saved) : true;
-  });
-
   const [colorScheme, setColorScheme] = useState(() => {
-    return localStorage.getItem('kaching_colorScheme') || 'indigo';
+    return localStorage.getItem('kaching_colorScheme') || 'qatar';
   });
 
   const [budgetEnabled, setBudgetEnabled] = useState(() => {
@@ -43,12 +38,6 @@ export const SettingsProvider = ({ children }) => {
   useEffect(() => {
     localStorage.setItem('kaching_quick_amounts', JSON.stringify(quickAmounts));
   }, [quickAmounts]);
-
-  useEffect(() => {
-    localStorage.setItem('kaching_darkMode', JSON.stringify(darkMode));
-    if (darkMode) document.documentElement.classList.add('dark');
-    else document.documentElement.classList.remove('dark');
-  }, [darkMode]);
 
   useEffect(() => {
     localStorage.setItem('kaching_colorScheme', colorScheme);
@@ -80,7 +69,6 @@ export const SettingsProvider = ({ children }) => {
   const value = {
     categories, addCategory, removeCategory, setCategories,
     quickAmounts, updateQuickAmount,
-    darkMode, setDarkMode,
     colorScheme, setColorScheme,
     budgetEnabled, setBudgetEnabled,
     dailyBudget, setDailyBudget

@@ -4,42 +4,67 @@
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
   --color-primary: var(--primary);
-  --color-primary-foreground: #ffffff;
+  --color-primary-foreground: var(--primary-fg);
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
 
-  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-  --font-display: "Lexend", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Lexend", ui-sans-serif, system-ui, sans-serif;
 }
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --primary: #6366f1; /* Indigo Default */
+    /* Default - Qatar Luxury */
+    --background: 345 50% 12%; /* Deep Burgundy */
+    --foreground: 45 40% 95%; /* Cream */
+    --card: 345 50% 15%;
+    --card-foreground: 45 40% 95%;
+    --primary: #c4a46d; /* Qatar Gold */
+    --primary-fg: #1a050a;
   }
 
-  .dark {
-    --background: 222.2 84% 4.9%;
+  [data-theme="qatar"] {
+    --background: 345 50% 12%;
+    --foreground: 45 40% 95%;
+    --primary: #c4a46d;
+    --primary-fg: #1a050a;
+  }
+
+  [data-theme="onyx"] {
+    --background: 0 0% 0%;
+    --foreground: 0 0% 100%;
+    --primary: #ffd700; /* Pure Gold */
+    --primary-fg: #000000;
+  }
+
+  [data-theme="emerald"] {
+    --background: 160 50% 10%;
+    --foreground: 160 20% 98%;
+    --primary: #d1d5db; /* Platinum/Silver */
+    --primary-fg: #064e3b;
+  }
+
+  [data-theme="nordic"] {
+    --background: 215 30% 15%;
     --foreground: 210 40% 98%;
-    --card: 24 9.8% 10%;
-    --card-foreground: 210 40% 98%;
+    --primary: #fb923c; /* Copper/Orange */
+    --primary-fg: #1e1b4b;
   }
 
-  /* Color Schemes */
-  [data-theme="indigo"] { --primary: #6366f1; }
-  [data-theme="emerald"] { --primary: #10b981; }
-  [data-theme="rose"] { --primary: #f43f5e; }
-  [data-theme="ocean"] { --primary: #0ea5e9; }
-  [data-theme="sunset"] { --primary: #f59e0b; }
+  [data-theme="champagne"] {
+    --background: 20 20% 98%;
+    --foreground: 20 50% 10%;
+    --primary: #9f1239; /* Deep Rose */
+    --primary-fg: #ffffff;
+  }
 
   * {
-    @apply border-foreground/10;
+    @apply border-foreground/5;
     -webkit-tap-highlight-color: transparent;
   }
 
   body {
-    @apply bg-background text-foreground font-sans antialiased transition-colors duration-300;
+    @apply bg-background text-foreground font-sans antialiased transition-colors duration-500;
     overscroll-behavior-y: contain;
   }
 }
@@ -49,10 +74,3 @@
 
 .safe-area-pb { padding-bottom: env(safe-area-inset-bottom); }
 .safe-area-pt { padding-top: env(safe-area-inset-top); }
-
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-4px); }
-  75% { transform: translateX(4px); }
-}
-.animate-shake { animation: shake 0.2s ease-in-out 0s 2; }
