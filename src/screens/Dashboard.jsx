@@ -54,8 +54,11 @@ const Dashboard = () => {
   }, [user]);
 
   const handleDelete = async (id) => {
-    if (window.confirm("Permanently delete this item?")) {
+    try {
       await deleteDoc(doc(db, 'expenses', id));
+    } catch (e) {
+      console.error("Delete failed:", e);
+      alert("Failed to delete entry.");
     }
   };
 
@@ -98,19 +101,6 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Trend Graph */}
-      <div className="bg-foreground/3 p-8 rounded-[40px] space-y-8 border border-foreground/5 shadow-sm">
-        <div className="flex justify-between items-center"><h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-foreground/40 flex items-center gap-2"><BarChart3 className="w-3.5 h-3.5" /> Analytics</h2></div>
-        <div className="h-32 flex items-end justify-between gap-4">
-          {chartData.map(([day, amt]) => (
-            <div key={day} className="flex-1 flex flex-col items-center gap-3 group relative">
-              <motion.div initial={{ height: 0 }} animate={{ height: `${(amt / Math.max(...chartData.map(d => d[1]), 1)) * 100}%` }} className="w-full bg-primary/20 group-hover:bg-primary transition-all rounded-full" />
-              <span className="text-[8px] font-bold text-foreground/20">{day.split(' ')[1]}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
       {/* Allocation Classes */}
       <div className="space-y-6 pb-4">
         <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] ml-2 text-foreground/40 flex items-center gap-2"><PieChart className="w-3.5 h-3.5" /> Allocation Classes</h2>
@@ -121,26 +111,38 @@ const Dashboard = () => {
                 <div className="flex flex-col items-start gap-2"><span className="font-bold text-base tracking-tight">{cat}</span><div className="h-1.5 w-24 bg-foreground/10 rounded-full overflow-hidden"><motion.div animate={{ width: `${(data.total / stats.month) * 100}%` }} className="h-full bg-primary/60" /></div></div>
                 <div className="flex items-center gap-5"><div className="font-bold text-primary text-base">{currency}{data.total.toLocaleString()}</div><ChevronRight className={`w-4 h-4 text-foreground/20 transition-transform ${expandedCategory === cat ? 'rotate-90' : ''}`} /></div>
               </button>
+
               <AnimatePresence>
                 {expandedCategory === cat && (
-                  <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="px-3 pb-4 space-y-2 bg-foreground/5 border-t border-foreground/5">
+                  <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="px-3 pb-4 space-y-3 bg-foreground/5 border-t border-foreground/5">
                     <div className="pt-2" />
                     {data.items.map((item) => (
-                      <motion.div key={item.id} drag="x" dragConstraints={{ left: -100, right: 0 }} onDragEnd={(_, info) => info.offset.x < -40 && handleDelete(item.id)} className="flex justify-between items-center px-5 py-5 rounded-[32px] bg-background border border-foreground/5 active:scale-[0.98] transition-transform relative group touch-pan-x">
-                        <div className="flex flex-col gap-1">
-                          <div className="font-bold text-sm text-foreground/80 leading-tight">{item.note || 'General Entry'}</div>
-                          <div className="text-[9px] font-semibold text-foreground/20 uppercase tracking-widest">{formatIST(new Date(item.dateIST), 'MMM d • h:mm a')}</div>
+                      <div key={item.id} className="relative h-20 bg-transparent">
+                        {/* Background Layer: Circular Delete Button */}
+                        <div className="absolute inset-0 flex justify-end items-center px-6">
+                           <button
+                             onClick={() => handleDelete(item.id)}
+                             className="w-14 h-14 rounded-full bg-red-500 flex items-center justify-center text-white shadow-lg active:scale-95 transition-transform z-0"
+                           >
+                             <Trash2 className="w-6 h-6" />
+                           </button>
                         </div>
-                        <div className="flex items-center gap-4">
-                           <div className="font-bold text-sm text-foreground/60">{currency}{item.amount}</div>
-                           {/* iOS Style Circular Delete Button */}
-                           <button onClick={() => handleDelete(item.id)} className="w-8 h-8 rounded-full bg-red-500/10 text-red-500 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all active:scale-90 shadow-sm border border-red-500/20"><Trash2 className="w-3.5 h-3.5" /></button>
-                        </div>
-                        {/* Swipe Reveal UI */}
-                        <div className="absolute right-[-100px] h-full flex items-center justify-center pl-6 pr-10">
-                           <div className="w-14 h-14 rounded-full bg-red-500 flex items-center justify-center text-white shadow-lg active:scale-95"><Trash2 className="w-6 h-6" /></div>
-                        </div>
-                      </motion.div>
+
+                        {/* Foreground Layer: Draggable Content */}
+                        <motion.div
+                          drag="x"
+                          dragConstraints={{ left: -100, right: 0 }}
+                          dragElastic={0.1}
+                          whileDrag={{ cursor: 'grabbing' }}
+                          className="absolute inset-0 flex justify-between items-center px-6 rounded-[32px] bg-background border border-foreground/5 z-10 touch-pan-x"
+                        >
+                          <div className="flex flex-col gap-1">
+                            <div className="font-bold text-sm text-foreground/80 leading-tight truncate max-w-[150px]">{item.note || 'General Entry'}</div>
+                            <div className="text-[9px] font-semibold text-foreground/20 uppercase tracking-widest">{formatIST(new Date(item.dateIST), 'MMM d • h:mm a')}</div>
+                          </div>
+                          <div className="font-bold text-sm text-foreground/60">{currency}{item.amount}</div>
+                        </motion.div>
+                      </div>
                     ))}
                   </motion.div>
                 )}
@@ -153,7 +155,7 @@ const Dashboard = () => {
       {/* Wealth Review Modal */}
       <AnimatePresence>
         {showWealthReport && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-50 bg-black/80 backdrop-blur-3xl flex items-center justify-center p-8">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xl flex items-center justify-center p-8">
             <motion.div initial={{ scale: 0.95, y: 30 }} animate={{ scale: 1, y: 0 }} className="bg-background w-full max-w-sm rounded-[56px] p-10 border border-foreground/5 relative overflow-hidden">
               <div className="absolute -left-10 -top-10 w-40 h-40 bg-primary/10 rounded-full blur-3xl" />
               <button onClick={() => setShowWealthReport(false)} className="absolute right-8 top-8 p-3 bg-foreground/5 rounded-full"><X className="w-4 h-4" /></button>
