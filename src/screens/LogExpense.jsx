@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle2, Send, Mic, MicOff } from 'lucide-react';
+import { CheckCircle2, Send } from 'lucide-react';
 import { db } from '../lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
@@ -15,27 +15,9 @@ const LogExpense = () => {
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [isListening, setIsListening] = useState(false);
   const amountInputRef = useRef(null);
 
   useEffect(() => { if (amountInputRef.current) amountInputRef.current.focus(); }, []);
-
-  const handleVoiceCommand = () => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) return;
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'en-IN';
-    recognition.onstart = () => setIsListening(true);
-    recognition.onend = () => setIsListening(false);
-    recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript.toLowerCase();
-      const amountMatch = transcript.match(/\d+/);
-      if (amountMatch) setAmount(amountMatch[0]);
-      const foundCategory = categories.find(c => transcript.includes(c.toLowerCase()));
-      if (foundCategory) setCategory(foundCategory);
-    };
-    recognition.start();
-  };
 
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
@@ -59,15 +41,10 @@ const LogExpense = () => {
   };
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col h-full max-w-md mx-auto p-6 pt-12 pb-40">
-      <header className="mb-12 flex justify-between items-end">
-        <div className="space-y-1">
-          <p className="text-foreground/30 font-bold text-[10px] uppercase tracking-widest">TRANSACTION</p>
-          <h1 className="text-4xl font-bold font-display tracking-tight">Record</h1>
-        </div>
-        <motion.button whileTap={{ scale: 0.9 }} onClick={handleVoiceCommand} className={`p-4 rounded-full transition-all ${isListening ? 'bg-red-500 text-white animate-pulse shadow-lg' : 'bg-foreground/5 text-primary shadow-sm'}`}>
-          {isListening ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
-        </motion.button>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col min-h-screen max-w-md mx-auto p-6 pt-12 pb-48">
+      <header className="mb-12">
+        <p className="text-foreground/30 font-bold text-[10px] uppercase tracking-widest">TRANSACTION</p>
+        <h1 className="text-4xl font-bold font-display tracking-tight">Record</h1>
       </header>
 
       <form onSubmit={handleSubmit} className="flex-1 flex flex-col space-y-12">
@@ -111,13 +88,13 @@ const LogExpense = () => {
           <input type="text" placeholder="Add a memo..." value={note} onChange={(e) => setNote(e.target.value)} className="w-full bg-foreground/5 rounded-[24px] py-6 px-8 outline-none border border-foreground/5 font-medium placeholder:text-foreground/20" />
         </div>
 
-        <div className="flex-1 flex items-end pb-12">
+        <div className="pt-8">
           <motion.button
             layout
             type="submit"
             disabled={loading || !amount}
             whileTap={{ scale: 0.97 }}
-            className={`w-full py-6 rounded-[32px] font-bold text-xl flex items-center justify-center space-x-3 transition-all ${loading || !amount ? 'bg-foreground/5 text-foreground/20' : 'bg-primary text-primary-foreground shadow-2xl shadow-primary/30'}`}
+            className={`w-full py-6 rounded-[32px] font-bold text-xl flex items-center justify-center space-x-3 transition-all ${loading || !amount ? 'bg-foreground/5 text-foreground/20' : 'bg-primary text-primary-foreground shadow-2xl shadow-primary/40'}`}
           >
             {loading ? <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }} className="w-6 h-6 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full" /> : <><Send className="w-5 h-5" /><span>Confirm Entry</span></>}
           </motion.button>

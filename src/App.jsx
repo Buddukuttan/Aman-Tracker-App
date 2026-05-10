@@ -20,16 +20,12 @@ function App() {
   const handleUnlock = async () => {
     setVerifying(true);
 
-    // REQUEST FULLSCREEN ON AUTHENTICATION
+    // ATTEMPT FULLSCREEN
     try {
       const docEl = document.documentElement;
-      const requestFullscreen = docEl.requestFullscreen || docEl.webkitRequestFullscreen || docEl.mozRequestFullScreen || docEl.msRequestFullscreen;
-      if (requestFullscreen) {
-        await requestFullscreen.call(docEl);
-      }
-    } catch (e) {
-      console.warn("Fullscreen request failed. Standalone PWA mode recommended.");
-    }
+      if (docEl.requestFullscreen) docEl.requestFullscreen();
+      else if (docEl.webkitRequestFullscreen) docEl.webkitRequestFullscreen();
+    } catch (e) {}
 
     if (window.PublicKeyCredential && biometricEnabled) {
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -50,18 +46,8 @@ function App() {
          {verifying && <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 2, ease: "linear" }} className="absolute inset-[-10px] border-2 border-primary/20 border-t-primary rounded-[50px]" />}
          <Lock className="w-10 h-10" />
       </div>
-      <div className="space-y-3">
-        <h2 className="text-3xl font-bold font-display tracking-tight text-foreground">Security Vault</h2>
-        <p className="text-foreground/40 text-sm font-medium">Authentication required to <br/> access your portfolio.</p>
-      </div>
-      <button
-        onClick={handleUnlock}
-        disabled={verifying}
-        className="w-full max-w-xs py-6 bg-primary text-primary-foreground rounded-[32px] font-bold flex items-center justify-center gap-3 shadow-2xl shadow-primary/40 active:scale-95 transition-transform disabled:opacity-50"
-      >
-        <ShieldCheck className="w-6 h-6" />
-        <span>{verifying ? 'Verifying...' : 'FaceID / TouchID'}</span>
-      </button>
+      <div className="space-y-3"><h2 className="text-3xl font-bold font-display tracking-tight text-foreground">Security Vault</h2><p className="text-foreground/40 text-sm font-medium">Verify credentials to unlock portfolio.</p></div>
+      <button onClick={handleUnlock} disabled={verifying} className="w-full max-w-xs py-6 bg-primary text-primary-foreground rounded-[32px] font-bold flex items-center justify-center gap-3 shadow-2xl shadow-primary/40 active:scale-95 transition-transform disabled:opacity-50"><ShieldCheck className="w-6 h-6" /><span>{verifying ? 'Verifying...' : 'FaceID / TouchID'}</span></button>
     </div>
   );
 
@@ -69,7 +55,14 @@ function App() {
     <div className="h-screen flex flex-col bg-background text-foreground overflow-hidden">
       <main className="flex-1 relative overflow-hidden">
         <AnimatePresence mode="wait">
-          <motion.div key={activeTab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ type: "spring", damping: 30, stiffness: 300 }} className="absolute inset-0 overflow-y-auto no-scrollbar pb-40">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ type: "spring", damping: 30, stiffness: 300 }}
+            className="absolute inset-0 overflow-y-auto no-scrollbar scroll-smooth"
+          >
             {activeTab === 'log' && <LogExpense />}
             {activeTab === 'dashboard' && <Dashboard />}
             {activeTab === 'settings' && <Settings />}
