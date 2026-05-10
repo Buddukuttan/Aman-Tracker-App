@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle2, IndianRupee, Send } from 'lucide-react';
+import { CheckCircle2, Send, Mic, MicOff } from 'lucide-react';
 import { db } from '../lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
@@ -9,19 +9,58 @@ import { getISTDate } from '../lib/utils';
 
 const LogExpense = () => {
   const { user } = useAuth();
-  const { categories, quickAmounts } = useSettings();
+  const { categories, quickAmounts, currency } = useSettings();
 
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState(categories[0]);
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [isListening, setIsListening] = useState(false);
 
   const amountInputRef = useRef(null);
 
   useEffect(() => {
     if (amountInputRef.current) amountInputRef.current.focus();
   }, []);
+
+  const handleVoiceCommand = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Voice recognition is not supported on this browser.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-IN';
+    recognition.interimResults = false;
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onend = () => setIsListening(false);
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript.toLowerCase();
+      console.log("Voice Transcript:", transcript);
+
+      // Basic Parser: "Spent 500 on Food" or "500 Shopping"
+      const amountMatch = transcript.match(/\d+/);
+      if (amountMatch) {
+        setAmount(amountMatch[0]);
+      }
+
+      const foundCategory = categories.find(c => transcript.includes(c.toLowerCase()));
+      if (foundCategory) {
+        setCategory(foundCategory);
+      }
+
+      if (transcript.includes("for ")) {
+        const noteMatch = transcript.split("for ")[1];
+        if (noteMatch) setNote(noteMatch);
+      }
+    };
+
+    recognition.start();
+  };
 
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
@@ -37,7 +76,8 @@ const LogExpense = () => {
         note,
         timestamp: serverTimestamp(),
         dateIST: istDate.toISOString(),
-        createdAt: istDate.getTime()
+        createdAt: istDate.getTime(),
+        currency: currency
       });
 
       setShowSuccess(true);
@@ -51,7 +91,7 @@ const LogExpense = () => {
       }, 2000);
     } catch (error) {
       console.error("Error saving expense:", error);
-      alert("Failed to save expense. Please try again.");
+      alert("Failed to save expense.");
     } finally {
       setLoading(false);
     }
@@ -59,14 +99,22 @@ const LogExpense = () => {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col h-full max-w-md mx-auto p-6 pt-12">
-      <header className="mb-10 space-y-1">
-        <h1 className="text-3xl font-bold font-display tracking-tight">Record Entry</h1>
-        <p className="text-foreground/40 font-medium text-sm italic">Capture your recent transaction</p>
+      <header className="mb-10 flex justify-between items-start">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold font-display tracking-tight">Record Entry</h1>
+          <p className="text-foreground/40 font-medium text-sm italic">Capture your recent transaction</p>
+        </div>
+        <button
+          onClick={handleVoiceCommand}
+          className={`p-4 rounded-full transition-all ${isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-primary/10 text-primary hover:bg-primary/20'}`}
+        >
+          {isListening ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
+        </button>
       </header>
 
       <form onSubmit={handleSubmit} className="flex-1 flex flex-col space-y-10">
         <div className="relative group">
-          <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} className="absolute -left-2 top-1/2 -translate-y-1/2 text-5xl font-bold text-primary/20 group-focus-within:text-primary transition-colors">₹</motion.div>
+          <motion.div className="absolute -left-2 top-1/2 -translate-y-1/2 text-5xl font-bold text-primary/20 group-focus-within:text-primary transition-colors">{currency}</motion.div>
           <input
             ref={amountInputRef}
             type="number"
@@ -75,7 +123,6 @@ const LogExpense = () => {
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             className="w-full bg-transparent border-b-4 border-foreground/5 focus:border-primary text-6xl font-bold py-6 pl-12 outline-none transition-all placeholder:text-foreground/5"
-            autoFocus
           />
         </div>
 
@@ -107,7 +154,7 @@ const LogExpense = () => {
 
         <div className="space-y-4">
           <label className="text-[10px] font-bold text-foreground/40 uppercase tracking-[0.2em] ml-1">Memo</label>
-          <input type="text" placeholder="Transaction details..." value={note} onChange={(e) => setNote(e.target.value)} className="w-full bg-foreground/5 rounded-[24px] py-5 px-8 outline-none focus:ring-4 ring-primary/10 transition-all font-medium" />
+          <input type="text" placeholder={isListening ? "Listening for details..." : "Transaction details..."} value={note} onChange={(e) => setNote(e.target.value)} className="w-full bg-foreground/5 rounded-[24px] py-5 px-8 outline-none focus:ring-4 ring-primary/10 transition-all font-medium" />
         </div>
 
         <div className="flex-1 flex items-end pb-12">

@@ -5,11 +5,11 @@ import { db } from '../lib/firebase';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { formatIST } from '../lib/utils';
 import * as XLSX from 'xlsx';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   LogOut, Plus, Trash2, Download, BookOpen,
   ChevronRight, X, Smartphone, Fingerprint, Edit2, Check,
-  Palette, Target, Wallet
+  Palette, Target, Wallet, Globe, ShieldCheck
 } from 'lucide-react';
 
 const Settings = () => {
@@ -19,7 +19,9 @@ const Settings = () => {
     quickAmounts, updateQuickAmount,
     colorScheme, setColorScheme,
     budgetEnabled, setBudgetEnabled,
-    dailyBudget, setDailyBudget
+    dailyBudget, setDailyBudget,
+    biometricEnabled, setBiometricEnabled,
+    currency, setCurrency
   } = useSettings();
 
   const [newCategory, setNewCategory] = useState('');
@@ -36,6 +38,15 @@ const Settings = () => {
     { id: 'champagne', name: 'Champagne', colors: ['#f8fafc', '#9f1239'] }
   ];
 
+  const handleDetectCurrency = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(() => {
+        setCurrency('$');
+        alert("Currency updated to $ (Simulated)");
+      });
+    }
+  };
+
   const handleExport = async () => {
     if (!user) return;
     setExporting(true);
@@ -49,15 +60,25 @@ const Settings = () => {
           'Sl. No.': snapshot.docs.length - index,
           'Note': d.note || '-',
           'Category': d.category || 'Other',
-          'Amount (₹)': d.amount || 0,
+          'Amount': d.amount || 0,
+          'Currency': d.currency || '₹',
           'Date': formatIST(date, 'yyyy-MM-dd'),
           'Time': formatIST(date, 'HH:mm:ss')
         };
       });
 
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), 'Master Sheet');
-      XLSX.writeFile(wb, `KaChing_Luxury_${formatIST(new Date(), 'yyyy-MM-dd')}.xlsx`);
+      const ws = XLSX.utils.json_to_sheet(data);
+      XLSX.utils.book_append_sheet(wb, ws, "Master Portfolio");
+
+      const categoriesInEntries = [...new Set(data.map(item => item.Category))];
+      categoriesInEntries.forEach(cat => {
+        const catData = data.filter(item => item.Category === cat);
+        const catWs = XLSX.utils.json_to_sheet(catData);
+        XLSX.utils.book_append_sheet(wb, catWs, cat.substring(0, 31));
+      });
+
+      XLSX.writeFile(wb, `Wealth_Portfolio_${formatIST(new Date(), 'yyyy-MM-dd')}.xlsx`);
     } catch (error) {
       alert("Export failed.");
     } finally {
@@ -72,65 +93,91 @@ const Settings = () => {
     setEditValue('');
   };
 
+  const tutorials = {
+    pwa: {
+      title: "Add to Home Screen",
+      steps: [
+        { icon: <Smartphone className="w-6 h-6" />, text: "Open the app in Safari on your iPhone" },
+        { icon: <ChevronRight className="rotate-90 w-6 h-6" />, text: "Tap the Share button at the bottom" },
+        { icon: <Plus className="w-6 h-6" />, text: "Tap 'Add to Home Screen'" },
+        { text: "Give it a name and tap 'Add'" }
+      ]
+    },
+    backtap: {
+      title: "Set Up Back Tap Shortcut",
+      steps: [
+        { text: "Open iPhone Shortcuts app" },
+        { icon: <Plus className="w-6 h-6" />, text: "Create new 'Open App' shortcut" },
+        { text: "Select 'Ka-Ching'" },
+        { text: "Go to Settings → Accessibility → Touch → Back Tap" },
+        { text: "Select your new shortcut" }
+      ]
+    }
+  };
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col h-full max-w-md mx-auto p-6 pt-12 space-y-8 pb-32">
-      <header>
-        <h1 className="text-3xl font-bold font-display tracking-tight">Luxury Suite</h1>
-        <p className="text-foreground/40 text-sm font-medium">Customize your financial experience</p>
-      </header>
+      <header><h1 className="text-3xl font-bold font-display tracking-tight">Luxury Suite</h1></header>
 
-      {/* Theme Selector */}
+      {/* Theme */}
       <div className="space-y-4">
-        <h2 className="text-xs font-bold text-foreground/40 uppercase tracking-[0.2em] ml-1 flex items-center gap-2">
-          <Palette className="w-3 h-3" /> Visual Theme
-        </h2>
-        <div className="grid grid-cols-1 gap-3">
+        <h2 className="text-xs font-bold text-foreground/40 uppercase tracking-[0.2em] ml-1 flex items-center gap-2"><Palette className="w-3 h-3" /> Visual Theme</h2>
+        <div className="grid grid-cols-1 gap-2">
           {luxuryThemes.map((theme) => (
-            <button
-              key={theme.id}
-              onClick={() => setColorScheme(theme.id)}
-              className={`flex items-center justify-between p-5 rounded-[24px] transition-all border-2 ${
-                colorScheme === theme.id ? 'border-primary bg-primary/5 shadow-lg' : 'border-foreground/5 bg-foreground/5 opacity-60'
-              }`}
-            >
-              <div className="flex items-center gap-4">
-                <div className="flex -space-x-2">
-                  <div className="w-6 h-6 rounded-full border border-background shadow-sm" style={{ backgroundColor: theme.colors[0] }} />
-                  <div className="w-6 h-6 rounded-full border border-background shadow-sm" style={{ backgroundColor: theme.colors[1] }} />
+            <button key={theme.id} onClick={() => setColorScheme(theme.id)} className={`flex items-center justify-between p-4 rounded-[20px] transition-all border-2 ${colorScheme === theme.id ? 'border-primary bg-primary/5' : 'border-foreground/5 bg-foreground/5 opacity-60'}`}>
+              <div className="flex items-center gap-3">
+                <div className="flex -space-x-1.5">
+                  <div className="w-4 h-4 rounded-full border border-background shadow-sm" style={{ backgroundColor: theme.colors[0] }} />
+                  <div className="w-4 h-4 rounded-full border border-background shadow-sm" style={{ backgroundColor: theme.colors[1] }} />
                 </div>
-                <span className={`font-bold ${colorScheme === theme.id ? 'text-primary' : ''}`}>{theme.name}</span>
+                <span className={`font-bold text-sm ${colorScheme === theme.id ? 'text-primary' : ''}`}>{theme.name}</span>
               </div>
-              {colorScheme === theme.id && <Check className="w-5 h-5 text-primary" />}
+              {colorScheme === theme.id && <Check className="w-4 h-4 text-primary" />}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Daily Budget */}
-      <div className="space-y-4">
-        <h2 className="text-xs font-bold text-foreground/40 uppercase tracking-[0.2em] ml-1 flex items-center gap-2">
-          <Target className="w-3 h-3" /> Dynamic Allocation
-        </h2>
-        <div className="bg-foreground/5 p-6 rounded-[32px] space-y-5 border border-foreground/5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/10 rounded-xl"><Wallet className="w-5 h-5 text-primary" /></div>
-              <span className="font-bold">Smart Daily Budget</span>
-            </div>
-            <button onClick={() => setBudgetEnabled(!budgetEnabled)} className={`w-12 h-6 rounded-full transition-colors relative ${budgetEnabled ? 'bg-primary' : 'bg-foreground/20'}`}>
-              <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${budgetEnabled ? 'left-7' : 'left-1'}`} />
-            </button>
+      {/* Security & Jetsetter */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="bg-foreground/5 p-4 rounded-[24px] space-y-3 border border-foreground/5">
+          <div className="flex items-center gap-2 text-primary"><ShieldCheck className="w-4 h-4" /><span className="text-[10px] font-bold uppercase tracking-wider">FaceID Lock</span></div>
+          <button onClick={() => setBiometricEnabled(!biometricEnabled)} className={`w-full py-2 rounded-xl font-bold text-[10px] ${biometricEnabled ? 'bg-primary text-primary-foreground' : 'bg-foreground/10 text-foreground/40'}`}>
+            {biometricEnabled ? 'ENABLED' : 'DISABLED'}
+          </button>
+        </div>
+        <div className="bg-foreground/5 p-4 rounded-[24px] space-y-3 border border-foreground/5">
+          <div className="flex items-center gap-2 text-primary"><Globe className="w-4 h-4" /><span className="text-[10px] font-bold uppercase tracking-wider">Jetsetter Mode</span></div>
+          <div className="flex gap-2">
+            <button onClick={handleDetectCurrency} className="flex-1 bg-foreground/10 p-2 rounded-xl text-lg flex items-center justify-center transition-transform active:scale-90">{currency}</button>
+            <input type="text" maxLength={1} value={currency} onChange={(e) => setCurrency(e.target.value)} className="w-10 bg-background rounded-xl text-center font-bold text-sm outline-none ring-1 ring-foreground/10 focus:ring-primary" />
           </div>
-          {budgetEnabled && (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
-              <input type="number" value={dailyBudget} onChange={(e) => setDailyBudget(e.target.value)} className="w-full bg-background/50 rounded-2xl py-4 px-6 font-bold outline-none ring-1 ring-foreground/5 focus:ring-primary text-xl" />
-              <p className="text-[10px] text-foreground/30 mt-2 font-bold uppercase tracking-wider text-center">Standard Daily Allowance (₹)</p>
-            </motion.div>
-          )}
         </div>
       </div>
 
-      {/* My Categories */}
+      {/* Daily Budget */}
+      <div className="space-y-4">
+        <h2 className="text-xs font-bold text-foreground/40 uppercase tracking-[0.2em] ml-1 flex items-center gap-2"><Target className="w-3 h-3" /> Dynamic Allocation</h2>
+        <div className="bg-foreground/5 p-6 rounded-[32px] space-y-5 border border-foreground/5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3"><div className="p-2 bg-primary/10 rounded-xl"><Wallet className="w-5 h-5 text-primary" /></div><span className="font-bold">Daily Budget</span></div>
+            <button onClick={() => setBudgetEnabled(!budgetEnabled)} className={`w-12 h-6 rounded-full transition-colors relative ${budgetEnabled ? 'bg-primary' : 'bg-foreground/20'}`}><div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${budgetEnabled ? 'left-7' : 'left-1'}`} /></button>
+          </div>
+          {budgetEnabled && <input type="number" value={dailyBudget} onChange={(e) => setDailyBudget(e.target.value)} className="w-full bg-background/50 rounded-2xl py-4 px-6 font-bold outline-none ring-1 ring-foreground/5 focus:ring-primary text-xl" />}
+        </div>
+      </div>
+
+      {/* Quick Amounts */}
+      <div className="space-y-4">
+        <h2 className="text-xs font-bold text-foreground/40 uppercase tracking-[0.2em] ml-1">Log Pre-sets</h2>
+        <div className="grid grid-cols-4 gap-2">
+          {quickAmounts.map((amt, i) => (
+            <input key={i} type="number" value={amt} onChange={(e) => updateQuickAmount(i, e.target.value)} className="bg-foreground/5 rounded-xl py-3 font-bold text-center outline-none focus:ring-2 ring-primary/50 text-xs border border-foreground/5" />
+          ))}
+        </div>
+      </div>
+
+      {/* Categories */}
       <div className="space-y-4">
         <h2 className="text-xs font-bold text-foreground/40 uppercase tracking-[0.2em] ml-1">Asset Classes</h2>
         <div className="space-y-2">
@@ -160,9 +207,32 @@ const Settings = () => {
       </div>
 
       <div className="space-y-3 pt-4 pb-20">
-        <button onClick={handleExport} disabled={exporting} className="w-full flex items-center justify-between bg-foreground/5 p-5 rounded-3xl font-bold active:bg-foreground/10 transition-colors"><div className="flex items-center gap-3"><Download className="w-5 h-5 text-primary" />Export Data</div><ChevronRight className="w-5 h-5 text-foreground/20" /></button>
+        <button onClick={() => setActiveTutorial('pwa')} className="w-full flex items-center justify-between bg-foreground/5 p-5 rounded-3xl font-bold active:bg-foreground/10 transition-colors"><div className="flex items-center gap-3"><BookOpen className="w-5 h-5 text-primary" />Tutorial: Home Screen</div><ChevronRight className="w-5 h-5 text-foreground/20" /></button>
+        <button onClick={() => setActiveTutorial('backtap')} className="w-full flex items-center justify-between bg-foreground/5 p-5 rounded-3xl font-bold active:bg-foreground/10 transition-colors"><div className="flex items-center gap-3"><Fingerprint className="w-5 h-5 text-primary" />Tutorial: Back Tap</div><ChevronRight className="w-5 h-5 text-foreground/20" /></button>
+        <button onClick={handleExport} disabled={exporting} className="w-full flex items-center justify-between bg-foreground/5 p-5 rounded-3xl font-bold active:bg-foreground/10 disabled:opacity-50 transition-colors"><div className="flex items-center gap-3"><Download className="w-5 h-5 text-primary" />Export Data</div><ChevronRight className="w-5 h-5 text-foreground/20" /></button>
         <button onClick={logout} className="w-full flex items-center justify-between bg-red-500/10 p-5 rounded-3xl font-bold text-red-500 active:bg-red-500/20 transition-colors"><div className="flex items-center gap-3"><LogOut className="w-5 h-5" />Sign Out</div></button>
       </div>
+
+      {activeTutorial && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-4">
+          <div className="bg-background w-full max-w-sm rounded-[40px] p-8 space-y-6 relative max-h-[85vh] overflow-y-auto">
+            <button onClick={() => setActiveTutorial(null)} className="absolute right-6 top-6 p-2 bg-foreground/5 rounded-full"><X className="w-5 h-5" /></button>
+            <h3 className="text-2xl font-bold font-display pt-2">{tutorials[activeTutorial].title}</h3>
+            <div className="space-y-4">
+              {tutorials[activeTutorial].steps.map((step, i) => (
+                <div key={i} className="flex gap-4 items-start">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm">{i + 1}</div>
+                  <div className="flex-1 space-y-2">
+                    <p className="font-medium text-foreground/80 leading-snug">{step.text}</p>
+                    {step.icon && <div className="w-fit p-3 bg-foreground/5 rounded-2xl text-primary">{step.icon}</div>}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => setActiveTutorial(null)} className="w-full py-4 bg-primary text-primary-foreground rounded-2xl font-bold mt-4">Got it!</button>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 };

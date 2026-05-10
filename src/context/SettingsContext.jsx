@@ -31,6 +31,14 @@ export const SettingsProvider = ({ children }) => {
     return saved ? Number(saved) : 500;
   });
 
+  const [biometricEnabled, setBiometricEnabled] = useState(() => {
+    return localStorage.getItem('kaching_biometricEnabled') === 'true';
+  });
+
+  const [currency, setCurrency] = useState(() => {
+    return localStorage.getItem('kaching_currency') || '₹';
+  });
+
   useEffect(() => {
     localStorage.setItem('kaching_categories', JSON.stringify(categories));
   }, [categories]);
@@ -52,6 +60,14 @@ export const SettingsProvider = ({ children }) => {
     localStorage.setItem('kaching_dailyBudget', dailyBudget.toString());
   }, [dailyBudget]);
 
+  useEffect(() => {
+    localStorage.setItem('kaching_biometricEnabled', biometricEnabled);
+  }, [biometricEnabled]);
+
+  useEffect(() => {
+    localStorage.setItem('kaching_currency', currency);
+  }, [currency]);
+
   const addCategory = (name) => {
     if (name && !categories.includes(name)) setCategories([...categories, name]);
   };
@@ -71,7 +87,9 @@ export const SettingsProvider = ({ children }) => {
     quickAmounts, updateQuickAmount,
     colorScheme, setColorScheme,
     budgetEnabled, setBudgetEnabled,
-    dailyBudget, setDailyBudget
+    dailyBudget, setDailyBudget,
+    biometricEnabled, setBiometricEnabled,
+    currency, setCurrency
   };
 
   return (
