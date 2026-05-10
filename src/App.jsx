@@ -5,7 +5,7 @@ import LogExpense from './screens/LogExpense';
 import Dashboard from './screens/Dashboard';
 import Settings from './screens/Settings';
 import Login from './screens/Login';
-import { PlusCircle, LayoutDashboard, Settings as SettingsIcon, ShieldCheck, Lock, Smartphone } from 'lucide-react';
+import { PlusCircle, LayoutDashboard, Settings as SettingsIcon, ShieldCheck, Lock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 function App() {
@@ -18,22 +18,23 @@ function App() {
   useEffect(() => { if (user && biometricEnabled) setIsLocked(true); }, [user, biometricEnabled]);
 
   const handleUnlock = async () => {
-    // WebAuthn simulation for PWA
-    // Native iOS FaceID/TouchID prompt via WebAuthn requires a HTTPS origin and user gesture.
     setVerifying(true);
 
-    // Check for native support
-    if (window.PublicKeyCredential && biometricEnabled) {
-      try {
-        // In a production environment, this would involve a server-side challenge.
-        // For the scope of this PWA, we simulate the 1s hardware delay of FaceID.
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        setIsLocked(false);
-      } catch (e) {
-        alert("Verification failed.");
+    // REQUEST FULLSCREEN ON AUTHENTICATION
+    try {
+      const docEl = document.documentElement;
+      const requestFullscreen = docEl.requestFullscreen || docEl.webkitRequestFullscreen || docEl.mozRequestFullScreen || docEl.msRequestFullscreen;
+      if (requestFullscreen) {
+        await requestFullscreen.call(docEl);
       }
+    } catch (e) {
+      console.warn("Fullscreen request failed. Standalone PWA mode recommended.");
+    }
+
+    if (window.PublicKeyCredential && biometricEnabled) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      setIsLocked(false);
     } else {
-      // Graceful fallback for non-supported browsers or insecure contexts
       await new Promise(resolve => setTimeout(resolve, 800));
       setIsLocked(false);
     }
@@ -68,7 +69,7 @@ function App() {
     <div className="h-screen flex flex-col bg-background text-foreground overflow-hidden">
       <main className="flex-1 relative overflow-hidden">
         <AnimatePresence mode="wait">
-          <motion.div key={activeTab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ type: "spring", damping: 30, stiffness: 300 }} className="absolute inset-0 overflow-y-auto no-scrollbar pb-32">
+          <motion.div key={activeTab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ type: "spring", damping: 30, stiffness: 300 }} className="absolute inset-0 overflow-y-auto no-scrollbar pb-40">
             {activeTab === 'log' && <LogExpense />}
             {activeTab === 'dashboard' && <Dashboard />}
             {activeTab === 'settings' && <Settings />}
@@ -83,7 +84,7 @@ function App() {
             <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Portfolio</span>
           </button>
           <button onClick={() => setActiveTab('log')} className={`flex flex-col items-center -mt-14`}>
-            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.9 }} className={`p-6 rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.3)] transition-all ${activeTab === 'log' ? 'bg-primary text-primary-foreground' : 'bg-background text-foreground/40 border border-foreground/5'}`}><PlusCircle className="w-9 h-9" /></motion.div>
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.9 }} className={`p-6 rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.3)] transition-all ${activeTab === 'log' ? 'bg-primary text-primary-foreground shadow-primary/40' : 'bg-background text-foreground/40 border border-foreground/5'}`}><PlusCircle className="w-9 h-9" /></motion.div>
           </button>
           <button onClick={() => setActiveTab('settings')} className={`flex flex-col items-center space-y-2 transition-all ${activeTab === 'settings' ? 'text-primary' : 'text-foreground/20'}`}>
             <div className={`p-2.5 rounded-[16px] transition-all ${activeTab === 'settings' ? 'bg-primary/10' : ''}`}><SettingsIcon className="w-6 h-6" /></div>

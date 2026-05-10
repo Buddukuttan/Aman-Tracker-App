@@ -61,7 +61,7 @@ const Dashboard = () => {
   const smartDailyBudget = (((dailyBudget * 30) - stats.month) / daysRemaining).toFixed(0);
 
   return (
-    <div className="flex flex-col h-full max-w-md mx-auto p-6 pt-12 space-y-10 pb-32 overflow-y-auto no-scrollbar font-sans">
+    <div className="flex flex-col h-full max-w-md mx-auto p-6 pt-12 space-y-10 pb-40 overflow-y-auto no-scrollbar font-sans touch-pan-y">
       <header className="flex justify-between items-end">
         <div className="space-y-1">
           <p className="text-foreground/30 font-bold text-[10px] uppercase tracking-widest">{formatIST(new Date(), 'EEEE, MMM d')}</p>
@@ -107,19 +107,22 @@ const Dashboard = () => {
                   <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="px-3 pb-4 space-y-3 bg-foreground/5 border-t border-foreground/5 overflow-hidden">
                     <div className="pt-2" />
                     {data.items.map((item) => (
-                      <div key={item.id} className="relative h-20 group overflow-hidden">
-                        {/* THE DELETE INDICATOR (REAR LAYER) */}
-                        <div className="absolute inset-0 bg-red-500 rounded-[32px] flex justify-end items-center px-8 text-white font-bold text-sm tracking-widest uppercase">
-                           DELETE
+                      <div key={item.id} className="relative h-20 group overflow-hidden bg-red-500 rounded-[32px]">
+                        {/* THE DELETE INDICATOR (REAR LAYER - REVEALED AS USER SWIPES) */}
+                        <div className="absolute inset-0 flex justify-end items-center px-8 text-white font-black text-[10px] tracking-widest uppercase">
+                           RELEASE TO DELETE
                         </div>
 
                         {/* THE CONTENT (FRONT LAYER) */}
                         <motion.div
                           drag="x"
+                          dragDirectionLock
                           dragConstraints={{ left: -300, right: 0 }}
-                          dragElastic={0.05}
+                          dragElastic={{ left: 0.6, right: 0.05 }}
                           onDragEnd={(_, info) => {
-                            if (info.offset.x < -140) {
+                            // On iPhone, info.offset.x or info.point.x are used.
+                            // Using info.offset.x with a more aggressive threshold for touch.
+                            if (info.offset.x < -120) {
                               handleDelete(item.id);
                             }
                           }}

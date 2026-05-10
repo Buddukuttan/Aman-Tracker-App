@@ -33,10 +33,6 @@ const LogExpense = () => {
       if (amountMatch) setAmount(amountMatch[0]);
       const foundCategory = categories.find(c => transcript.includes(c.toLowerCase()));
       if (foundCategory) setCategory(foundCategory);
-      if (transcript.includes("for ")) {
-        const noteMatch = transcript.split("for ")[1];
-        if (noteMatch) setNote(noteMatch);
-      }
     };
     recognition.start();
   };
@@ -63,7 +59,7 @@ const LogExpense = () => {
   };
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col h-full max-w-md mx-auto p-6 pt-12">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col h-full max-w-md mx-auto p-6 pt-12 pb-40">
       <header className="mb-12 flex justify-between items-end">
         <div className="space-y-1">
           <p className="text-foreground/30 font-bold text-[10px] uppercase tracking-widest">TRANSACTION</p>
