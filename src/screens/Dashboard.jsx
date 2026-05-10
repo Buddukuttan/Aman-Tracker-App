@@ -6,7 +6,7 @@ import { useSettings } from '../context/SettingsContext';
 import { getISTBoundaries, formatIST, getDaysRemainingInMonth } from '../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  BarChart3, PieChart, Trash2, Trophy, ArrowUpRight, ArrowDownRight, X, ChevronRight
+  PieChart, Trash2, Trophy, ArrowUpRight, ArrowDownRight, X, ChevronRight, Info
 } from 'lucide-react';
 
 const Dashboard = () => {
@@ -18,7 +18,6 @@ const Dashboard = () => {
   const [showWealthReport, setShowWealthReport] = useState(false);
   const [stats, setStats] = useState({ today: 0, week: 0, month: 0, lastWeek: 0 });
   const [categoryBreakdown, setCategoryBreakdown] = useState({});
-  const [chartData, setChartData] = useState([]);
 
   useEffect(() => {
     if (!user) return;
@@ -28,7 +27,7 @@ const Dashboard = () => {
       const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setExpenses(docs);
       let tTotal = 0, wTotal = 0, mTotal = 0, lwTotal = 0;
-      const breakdown = {}; const dailyMap = {};
+      const breakdown = {};
       const lastWeekStart = new Date(week); lastWeekStart.setDate(lastWeekStart.getDate() - 7);
       docs.forEach(exp => {
         const date = exp.timestamp?.toDate() || new Date(exp.dateIST);
@@ -41,12 +40,10 @@ const Dashboard = () => {
           breakdown[exp.category] = breakdown[exp.category] || { total: 0, items: [] };
           breakdown[exp.category].total += amt;
           breakdown[exp.category].items.push(exp);
-          dailyMap[formatIST(date, 'MMM d')] = (dailyMap[formatIST(date, 'MMM d')] || 0) + amt;
         }
       });
       setStats({ today: tTotal, week: wTotal, month: mTotal, lastWeek: lwTotal });
       setCategoryBreakdown(breakdown);
-      setChartData(Object.entries(dailyMap).slice(0, 7).reverse());
       setLoading(false);
     });
     return () => unsubscribe();
@@ -56,7 +53,7 @@ const Dashboard = () => {
     try {
       await deleteDoc(doc(db, 'expenses', id));
     } catch (e) {
-      alert("Delete failed.");
+      console.error(e);
     }
   };
 
@@ -89,7 +86,14 @@ const Dashboard = () => {
 
       {/* Allocation Classes */}
       <div className="space-y-6 pb-4">
-        <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] ml-2 text-foreground/40 flex items-center gap-2"><PieChart className="w-3.5 h-3.5" /> Allocation Classes</h2>
+        <div className="flex justify-between items-center px-2">
+          <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-foreground/40 flex items-center gap-2"><PieChart className="w-3.5 h-3.5" /> Allocation Classes</h2>
+          <div className="flex items-center gap-1.5 text-[9px] font-bold text-primary uppercase bg-primary/5 px-3 py-1.5 rounded-full">
+            <Info className="w-3 h-3" />
+            <span>Swipe left to delete</span>
+          </div>
+        </div>
+
         <div className="space-y-4">
           {Object.entries(categoryBreakdown).sort((a, b) => b[1].total - a[1].total).map(([cat, data]) => (
             <div key={cat} className="rounded-[40px] border border-foreground/5 bg-foreground/3 overflow-hidden shadow-sm">
@@ -103,28 +107,26 @@ const Dashboard = () => {
                   <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="px-3 pb-4 space-y-3 bg-foreground/5 border-t border-foreground/5 overflow-hidden">
                     <div className="pt-2" />
                     {data.items.map((item) => (
-                      <div key={item.id} className="relative h-20 group">
-                        {/* THE DELETE BUTTON (REAR LAYER) */}
-                        <div className="absolute right-4 top-1/2 -translate-y-1/2 z-0">
-                          <motion.button
-                            onTap={() => handleDelete(item.id)}
-                            whileTap={{ scale: 0.9 }}
-                            className="w-14 h-14 rounded-full bg-red-500 flex items-center justify-center text-white shadow-lg shadow-red-500/30"
-                          >
-                            <Trash2 className="w-6 h-6" />
-                          </motion.button>
+                      <div key={item.id} className="relative h-20 group overflow-hidden">
+                        {/* THE DELETE INDICATOR (REAR LAYER) */}
+                        <div className="absolute inset-0 bg-red-500 rounded-[32px] flex justify-end items-center px-8 text-white font-bold text-sm tracking-widest uppercase">
+                           DELETE
                         </div>
 
                         {/* THE CONTENT (FRONT LAYER) */}
                         <motion.div
                           drag="x"
-                          dragConstraints={{ left: -80, right: 0 }}
+                          dragConstraints={{ left: -300, right: 0 }}
                           dragElastic={0.05}
-                          dragTransition={{ bounceStiffness: 600, bounceDamping: 20 }}
+                          onDragEnd={(_, info) => {
+                            if (info.offset.x < -140) {
+                              handleDelete(item.id);
+                            }
+                          }}
                           className="absolute inset-0 flex justify-between items-center px-6 rounded-[32px] bg-background border border-foreground/5 z-10 touch-pan-x"
                         >
                           <div className="flex flex-col gap-1">
-                            <div className="font-bold text-sm text-foreground/80 leading-tight">{item.note || 'General Entry'}</div>
+                            <div className="font-bold text-sm text-foreground/80 leading-tight truncate max-w-[150px]">{item.note || 'General Entry'}</div>
                             <div className="text-[9px] font-semibold text-foreground/20 uppercase tracking-widest">{formatIST(new Date(item.dateIST), 'MMM d • h:mm a')}</div>
                           </div>
                           <div className="font-bold text-sm text-foreground/60">{currency}{item.amount}</div>
