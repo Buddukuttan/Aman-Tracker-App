@@ -14,7 +14,6 @@ const Dashboard = () => {
   const { budgetEnabled, dailyBudget, currency } = useSettings();
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [viewType, setViewType] = useState('daily');
   const [expandedCategory, setExpandedCategory] = useState(null);
   const [showWealthReport, setShowWealthReport] = useState(false);
   const [stats, setStats] = useState({ today: 0, week: 0, month: 0, lastWeek: 0 });
@@ -57,8 +56,7 @@ const Dashboard = () => {
     try {
       await deleteDoc(doc(db, 'expenses', id));
     } catch (e) {
-      console.error("Delete failed:", e);
-      alert("Failed to delete entry.");
+      alert("Delete failed.");
     }
   };
 
@@ -89,18 +87,6 @@ const Dashboard = () => {
         )}
       </motion.div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="bg-foreground/5 p-6 rounded-[32px] border border-foreground/5 space-y-1">
-          <p className="text-foreground/30 font-bold text-[10px] uppercase tracking-widest">Today</p>
-          <div className="text-2xl font-bold tracking-tight">{currency}{stats.today.toLocaleString()}</div>
-        </div>
-        <div className="bg-foreground/5 p-6 rounded-[32px] border border-foreground/5 space-y-1">
-          <p className="text-foreground/30 font-bold text-[10px] uppercase tracking-widest">Week</p>
-          <div className="text-2xl font-bold tracking-tight">{currency}{stats.week.toLocaleString()}</div>
-        </div>
-      </div>
-
       {/* Allocation Classes */}
       <div className="space-y-6 pb-4">
         <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] ml-2 text-foreground/40 flex items-center gap-2"><PieChart className="w-3.5 h-3.5" /> Allocation Classes</h2>
@@ -114,30 +100,31 @@ const Dashboard = () => {
 
               <AnimatePresence>
                 {expandedCategory === cat && (
-                  <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="px-3 pb-4 space-y-3 bg-foreground/5 border-t border-foreground/5">
+                  <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="px-3 pb-4 space-y-3 bg-foreground/5 border-t border-foreground/5 overflow-hidden">
                     <div className="pt-2" />
                     {data.items.map((item) => (
-                      <div key={item.id} className="relative h-20 bg-transparent">
-                        {/* Background Layer: Circular Delete Button */}
-                        <div className="absolute inset-0 flex justify-end items-center px-6">
-                           <button
-                             onClick={() => handleDelete(item.id)}
-                             className="w-14 h-14 rounded-full bg-red-500 flex items-center justify-center text-white shadow-lg active:scale-95 transition-transform z-0"
-                           >
-                             <Trash2 className="w-6 h-6" />
-                           </button>
+                      <div key={item.id} className="relative h-20 group">
+                        {/* THE DELETE BUTTON (REAR LAYER) */}
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2 z-0">
+                          <motion.button
+                            onTap={() => handleDelete(item.id)}
+                            whileTap={{ scale: 0.9 }}
+                            className="w-14 h-14 rounded-full bg-red-500 flex items-center justify-center text-white shadow-lg shadow-red-500/30"
+                          >
+                            <Trash2 className="w-6 h-6" />
+                          </motion.button>
                         </div>
 
-                        {/* Foreground Layer: Draggable Content */}
+                        {/* THE CONTENT (FRONT LAYER) */}
                         <motion.div
                           drag="x"
-                          dragConstraints={{ left: -100, right: 0 }}
-                          dragElastic={0.1}
-                          whileDrag={{ cursor: 'grabbing' }}
+                          dragConstraints={{ left: -80, right: 0 }}
+                          dragElastic={0.05}
+                          dragTransition={{ bounceStiffness: 600, bounceDamping: 20 }}
                           className="absolute inset-0 flex justify-between items-center px-6 rounded-[32px] bg-background border border-foreground/5 z-10 touch-pan-x"
                         >
                           <div className="flex flex-col gap-1">
-                            <div className="font-bold text-sm text-foreground/80 leading-tight truncate max-w-[150px]">{item.note || 'General Entry'}</div>
+                            <div className="font-bold text-sm text-foreground/80 leading-tight">{item.note || 'General Entry'}</div>
                             <div className="text-[9px] font-semibold text-foreground/20 uppercase tracking-widest">{formatIST(new Date(item.dateIST), 'MMM d • h:mm a')}</div>
                           </div>
                           <div className="font-bold text-sm text-foreground/60">{currency}{item.amount}</div>
@@ -152,7 +139,6 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Wealth Review Modal */}
       <AnimatePresence>
         {showWealthReport && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xl flex items-center justify-center p-8">
@@ -161,14 +147,10 @@ const Dashboard = () => {
               <button onClick={() => setShowWealthReport(false)} className="absolute right-8 top-8 p-3 bg-foreground/5 rounded-full"><X className="w-4 h-4" /></button>
               <div className="text-center space-y-10 relative">
                 <div className="w-20 h-20 bg-primary/10 rounded-[32px] flex items-center justify-center text-primary mx-auto shadow-inner"><Trophy className="w-10 h-10" /></div>
-                <div className="space-y-2"><h3 className="text-3xl font-bold font-display tracking-tight">Weekly Review</h3><p className="text-[10px] font-bold text-foreground/30 uppercase tracking-[0.25em]">Financial Intelligence</p></div>
+                <div className="space-y-2"><h3 className="text-3xl font-bold font-display tracking-tight">Weekly Review</h3></div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-foreground/3 p-5 rounded-[28px]"><p className="text-[9px] font-bold text-foreground/40 uppercase mb-2">Current</p><p className="text-2xl font-bold">{currency}{stats.week}</p></div>
                   <div className="bg-foreground/3 p-5 rounded-[28px]"><p className="text-[9px] font-bold text-foreground/40 uppercase mb-2">Previous</p><p className="text-2xl font-bold">{currency}{stats.lastWeek}</p></div>
-                </div>
-                <div className={`p-8 rounded-[40px] flex items-center justify-between ${stats.week < stats.lastWeek ? 'bg-emerald-500/10 text-emerald-600' : 'bg-red-500/10 text-red-600'}`}>
-                  <div className="text-left font-bold"><p className="text-[10px] uppercase opacity-60">Insight</p><p className="text-xl tracking-tight">{stats.week < stats.lastWeek ? 'Asset Growth' : 'Over Limit'}</p></div>
-                  {stats.week < stats.lastWeek ? <ArrowDownRight className="w-10 h-10" /> : <ArrowUpRight className="w-10 h-10" />}
                 </div>
                 <button onClick={() => setShowWealthReport(false)} className="w-full py-5 bg-primary text-primary-foreground rounded-[24px] font-bold shadow-2xl">Confirm Insight</button>
               </div>
