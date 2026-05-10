@@ -8,18 +8,18 @@
   --color-card: hsl(var(--card));
   --color-card-foreground: hsl(var(--card-foreground));
 
-  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Lexend", ui-sans-serif, system-ui, sans-serif;
+  /* SF Pro Style Fonts */
+  --font-sans: "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-display: "Lexend", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
 @layer base {
   :root {
-    /* Default - Qatar Luxury */
-    --background: 345 50% 12%; /* Deep Burgundy */
-    --foreground: 45 40% 95%; /* Cream */
+    --background: 345 50% 12%;
+    --foreground: 45 40% 95%;
     --card: 345 50% 15%;
     --card-foreground: 45 40% 95%;
-    --primary: #c4a46d; /* Qatar Gold */
+    --primary: #c4a46d;
     --primary-fg: #1a050a;
   }
 
@@ -33,28 +33,28 @@
   [data-theme="onyx"] {
     --background: 0 0% 0%;
     --foreground: 0 0% 100%;
-    --primary: #ffd700; /* Pure Gold */
+    --primary: #ffd700;
     --primary-fg: #000000;
   }
 
   [data-theme="emerald"] {
     --background: 160 50% 10%;
     --foreground: 160 20% 98%;
-    --primary: #d1d5db; /* Platinum/Silver */
+    --primary: #d1d5db;
     --primary-fg: #064e3b;
   }
 
   [data-theme="nordic"] {
     --background: 215 30% 15%;
     --foreground: 210 40% 98%;
-    --primary: #fb923c; /* Copper/Orange */
+    --primary: #fb923c;
     --primary-fg: #1e1b4b;
   }
 
   [data-theme="champagne"] {
     --background: 20 20% 98%;
     --foreground: 20 50% 10%;
-    --primary: #9f1239; /* Deep Rose */
+    --primary: #9f1239;
     --primary-fg: #ffffff;
   }
 
@@ -64,8 +64,11 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans antialiased transition-colors duration-500;
+    @apply bg-background text-foreground font-sans antialiased transition-colors duration-500 selection:bg-primary/30;
     overscroll-behavior-y: contain;
+    /* Soft iOS curves */
+    --radius-ios: 32px;
+    --radius-pill: 9999px;
   }
 }
 
@@ -74,3 +77,12 @@
 
 .safe-area-pb { padding-bottom: env(safe-area-inset-bottom); }
 .safe-area-pt { padding-top: env(safe-area-inset-top); }
+
+/* iOS Blur & Shadow utilities */
+.ios-blur {
+  @apply backdrop-blur-3xl bg-background/80;
+}
+
+.ios-card {
+  @apply rounded-[32px] border border-foreground/5 shadow-sm overflow-hidden;
+}
