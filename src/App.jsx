@@ -20,7 +20,7 @@ function App() {
   const handleUnlock = async () => {
     setVerifying(true);
 
-    // ATTEMPT FULLSCREEN
+    // ATTEMPT FULLSCREEN & HAPTIC SIM
     try {
       const docEl = document.documentElement;
       if (docEl.requestFullscreen) docEl.requestFullscreen();
@@ -37,11 +37,11 @@ function App() {
     setVerifying(false);
   };
 
-  if (loading) return <div className="h-screen flex items-center justify-center bg-background"><motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }} className="w-10 h-10 border-4 border-primary/10 border-t-primary rounded-full" /></div>;
+  if (loading) return <div className="h-[100dvh] flex items-center justify-center bg-background"><motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }} className="w-10 h-10 border-4 border-primary/10 border-t-primary rounded-full" /></div>;
   if (!user) return <Login />;
 
   if (isLocked) return (
-    <div className="h-screen flex flex-col items-center justify-center bg-background p-10 text-center space-y-10">
+    <div className="h-[100dvh] flex flex-col items-center justify-center bg-background p-10 text-center space-y-10">
       <div className="w-24 h-24 bg-primary/5 rounded-[40px] flex items-center justify-center text-primary shadow-inner relative">
          {verifying && <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 2, ease: "linear" }} className="absolute inset-[-10px] border-2 border-primary/20 border-t-primary rounded-[50px]" />}
          <Lock className="w-10 h-10" />
@@ -52,8 +52,8 @@ function App() {
   );
 
   return (
-    <div className="h-screen flex flex-col bg-background text-foreground overflow-hidden">
-      <main className="flex-1 relative overflow-hidden">
+    <div className="h-[100dvh] flex flex-col bg-background text-foreground overflow-hidden">
+      <main className="flex-1 relative">
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
@@ -61,7 +61,7 @@ function App() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ type: "spring", damping: 30, stiffness: 300 }}
-            className="absolute inset-0 overflow-y-auto no-scrollbar scroll-smooth"
+            className="absolute inset-0 overflow-y-auto no-scrollbar scroll-smooth touch-pan-y"
           >
             {activeTab === 'log' && <LogExpense />}
             {activeTab === 'dashboard' && <Dashboard />}

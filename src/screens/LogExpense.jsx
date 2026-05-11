@@ -41,13 +41,17 @@ const LogExpense = () => {
   };
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col min-h-screen max-w-md mx-auto p-6 pt-12 pb-48">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="flex flex-col w-full max-w-md mx-auto p-6 pt-12 pb-64"
+    >
       <header className="mb-12">
         <p className="text-foreground/30 font-bold text-[10px] uppercase tracking-widest">TRANSACTION</p>
         <h1 className="text-4xl font-bold font-display tracking-tight">Record</h1>
       </header>
 
-      <form onSubmit={handleSubmit} className="flex-1 flex flex-col space-y-12">
+      <form onSubmit={handleSubmit} className="space-y-12">
         <div className="relative group text-center">
           <div className="text-primary/20 font-bold text-sm mb-2 uppercase tracking-widest">{currency} Amount</div>
           <input
