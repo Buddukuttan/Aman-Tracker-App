@@ -9,7 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   LogOut, Plus, Trash2, Download, BookOpen,
   ChevronRight, X, Smartphone, Fingerprint, Edit2, Check,
-  Palette, Target, Wallet, Globe, ShieldCheck, Coins
+  Palette, Target, Wallet, Globe, ShieldCheck, Coins, HelpCircle
 } from 'lucide-react';
 
 const Settings = () => {
@@ -28,6 +28,7 @@ const Settings = () => {
   const [editingCategory, setEditingCategory] = useState(null);
   const [editValue, setEditValue] = useState('');
   const [exporting, setExporting] = useState(false);
+  const [activeTutorial, setActiveTutorial] = useState(null);
 
   const luxuryThemes = [
     { id: 'qatar', name: 'Qatar Airways', colors: ['#4b0d1a', '#c4a46d'] },
@@ -36,6 +37,28 @@ const Settings = () => {
     { id: 'nordic', name: 'Nordic Slate', colors: ['#1e293b', '#fb923c'] },
     { id: 'champagne', name: 'Champagne', colors: ['#f8fafc', '#9f1239'] }
   ];
+
+  const tutorials = {
+    pwa: {
+      title: "Add to Home Screen",
+      steps: [
+        { icon: <Smartphone className="w-6 h-6" />, text: "Open the app in Safari on your iPhone" },
+        { icon: <ChevronRight className="rotate-90 w-6 h-6" />, text: "Tap the Share button at the bottom" },
+        { icon: <Plus className="w-6 h-6" />, text: "Tap 'Add to Home Screen'" },
+        { text: "Give it a name and tap 'Add'" }
+      ]
+    },
+    backtap: {
+      title: "Set Up Back Tap Shortcut",
+      steps: [
+        { text: "Open iPhone Shortcuts app" },
+        { icon: <Plus className="w-6 h-6" />, text: "Create new 'Open App' shortcut" },
+        { text: "Select 'Ka-Ching'" },
+        { text: "Go to Settings → Accessibility → Touch → Back Tap" },
+        { text: "Select your new shortcut" }
+      ]
+    }
+  };
 
   const handleDetectCurrency = () => {
     if (navigator.geolocation) {
@@ -70,8 +93,6 @@ const Settings = () => {
       });
 
       const wb = XLSX.utils.book_new();
-
-      // Add Summary Row to Master Sheet
       const masterWithTotal = [...data, {}, { 'Note': 'TOTAL EXPENDITURE', 'Amount': totalSum }];
       const ws = XLSX.utils.json_to_sheet(masterWithTotal);
       XLSX.utils.book_append_sheet(wb, ws, "Master Portfolio");
@@ -86,11 +107,7 @@ const Settings = () => {
       });
 
       XLSX.writeFile(wb, `Wealth_Portfolio_${formatIST(new Date(), 'yyyy-MM-dd')}.xlsx`);
-    } catch (error) {
-      alert("Export failed.");
-    } finally {
-      setExporting(false);
-    }
+    } catch (e) { alert("Export failed."); } finally { setExporting(false); }
   };
 
   const handleRename = (oldName) => {
@@ -125,7 +142,7 @@ const Settings = () => {
         </div>
       </section>
 
-      {/* Security & Currency Group */}
+      {/* Security & Currency */}
       <section className="space-y-4">
         <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] ml-2 text-foreground/40 flex items-center gap-2"><ShieldCheck className="w-3.5 h-3.5" /> Security & Locale</h2>
         <div className="grid grid-cols-2 gap-4">
@@ -143,52 +160,22 @@ const Settings = () => {
         </div>
       </section>
 
-      {/* Smart Budget Card */}
-      <section className="space-y-4">
-        <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] ml-2 text-foreground/40 flex items-center gap-2"><Target className="w-3.5 h-3.5" /> Intelligence</h2>
-        <div className="bg-foreground/5 p-8 rounded-[40px] border border-foreground/5 space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4"><div className="p-3 bg-primary/10 rounded-2xl text-primary"><Wallet className="w-6 h-6" /></div><span className="font-bold">Smart Budget</span></div>
-            <button onClick={() => setBudgetEnabled(!budgetEnabled)} className={`w-14 h-7 rounded-full transition-all relative ${budgetEnabled ? 'bg-primary shadow-lg shadow-primary/20' : 'bg-foreground/20'}`}><div className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow-sm transition-all ${budgetEnabled ? 'left-8' : 'left-1'}`} /></button>
-          </div>
-          {budgetEnabled && (
-            <div className="space-y-3">
-              <input type="number" value={dailyBudget} onChange={(e) => setDailyBudget(e.target.value)} className="w-full bg-background/50 rounded-2xl py-5 px-8 font-bold outline-none ring-1 ring-foreground/10 focus:ring-primary text-2xl text-center" />
-              <p className="text-[9px] text-foreground/20 font-bold uppercase tracking-[0.3em] text-center">Standard Daily Pool</p>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* Quick Amount Configuration */}
+      {/* Quick Values */}
       <section className="space-y-4">
         <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] ml-2 text-foreground/40 flex items-center gap-2"><Coins className="w-3.5 h-3.5" /> Quick Entry Values</h2>
-        <div className="bg-foreground/5 p-6 rounded-[32px] border border-foreground/5">
-          <div className="grid grid-cols-2 gap-4">
-            {quickAmounts.map((amt, i) => (
-              <div key={i} className="space-y-1.5">
-                <p className="text-[8px] font-bold text-foreground/20 uppercase tracking-widest text-center">Slot {i + 1}</p>
-                <div className="relative">
-                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-foreground/20">{currency}</span>
-                   <input
-                     type="number"
-                     value={amt}
-                     onChange={(e) => updateQuickAmount(i, e.target.value)}
-                     className="w-full bg-background/40 rounded-2xl py-4 px-8 font-bold text-center outline-none ring-1 ring-foreground/5 focus:ring-primary text-sm"
-                   />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <div className="bg-foreground/5 p-6 rounded-[32px] border border-foreground/5"><div className="grid grid-cols-2 gap-4">
+          {quickAmounts.map((amt, i) => (
+            <div key={i} className="space-y-1.5"><p className="text-[8px] font-bold text-foreground/20 uppercase tracking-widest text-center">Slot {i + 1}</p><div className="relative"><span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-foreground/20">{currency}</span><input type="number" value={amt} onChange={(e) => updateQuickAmount(i, e.target.value)} className="w-full bg-background/40 rounded-2xl py-4 px-8 font-bold text-center outline-none ring-1 ring-foreground/5 focus:ring-primary text-sm" /></div></div>
+          ))}
+        </div></div>
       </section>
 
-      {/* Categories Group */}
+      {/* Asset Classes */}
       <section className="space-y-4">
         <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] ml-2 text-foreground/40 flex items-center gap-2"><Plus className="w-3.5 h-3.5" /> Asset Categories</h2>
-        <div className="bg-foreground/5 rounded-[32px] overflow-hidden border border-foreground/5">
+        <div className="bg-foreground/5 rounded-[32px] border border-foreground/5">
           {categories.map((cat) => (
-            <div key={cat} className="flex items-center justify-between p-5 border-b border-foreground/5 last:border-0 group">
+            <div key={cat} className="flex items-center justify-between p-5 border-b border-foreground/5 last:border-0">
               {editingCategory === cat ? (
                 <div className="flex-1 flex items-center gap-3"><input autoFocus value={editValue} onChange={(e) => setEditValue(e.target.value)} onBlur={() => handleRename(cat)} onKeyDown={(e) => e.key === 'Enter' && handleRename(cat)} className="flex-1 bg-background px-4 py-2 rounded-xl outline-none ring-2 ring-primary" /><button onClick={() => handleRename(cat)} className="text-primary"><Check className="w-6 h-6" /></button></div>
               ) : (
@@ -196,20 +183,41 @@ const Settings = () => {
               )}
             </div>
           ))}
-          <div className="p-4 bg-background/30"><div className="flex gap-3"><input type="text" placeholder="New Category" value={newCategory} onChange={(e) => setNewCategory(e.target.value)} className="flex-1 bg-background rounded-2xl py-4 px-6 outline-none border border-foreground/5 font-medium" /><button onClick={() => { if (newCategory.trim()) { addCategory(newCategory.trim()); setNewCategory(''); } }} className="bg-primary text-primary-foreground p-4 rounded-2xl active:scale-95 transition-all"><Plus className="w-6 h-6" /></button></div></div>
+          <div className="p-4"><div className="flex gap-3"><input type="text" placeholder="New Category" value={newCategory} onChange={(e) => setNewCategory(e.target.value)} className="flex-1 bg-background rounded-2xl py-4 px-6 outline-none border border-foreground/5 font-medium" /><button onClick={() => { if (newCategory.trim()) { addCategory(newCategory.trim()); setNewCategory(''); } }} className="bg-primary text-primary-foreground p-4 rounded-2xl active:scale-95"><Plus className="w-6 h-6" /></button></div></div>
         </div>
       </section>
 
-      {/* Export & Out */}
-      <section className="space-y-4 pt-4 pb-40">
-        <button onClick={handleExport} disabled={exporting} className="w-full flex items-center justify-between bg-primary/5 p-6 rounded-[32px] font-bold active:bg-primary/10 transition-all border border-primary/10 text-primary">
-          <div className="flex items-center gap-4"><Download className="w-6 h-6" />Export Report</div>
-          <ChevronRight className="w-5 h-5 opacity-40" />
-        </button>
-        <button onClick={logout} className="w-full flex items-center justify-between bg-red-500/5 p-6 rounded-[32px] font-bold text-red-500 active:bg-red-500/10 transition-all border border-red-500/10">
-          <div className="flex items-center gap-4"><LogOut className="w-6 h-6" />Terminate Session</div>
-        </button>
+      {/* Guides & System */}
+      <section className="space-y-4">
+        <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] ml-2 text-foreground/40 flex items-center gap-2"><HelpCircle className="w-3.5 h-3.5" /> Guides & System</h2>
+        <div className="space-y-3">
+          <button onClick={() => setActiveTutorial('pwa')} className="w-full flex items-center justify-between bg-foreground/5 p-6 rounded-[32px] font-bold active:bg-foreground/10 transition-all border border-foreground/5"><div className="flex items-center gap-4"><Smartphone className="w-6 h-6 text-primary" />Home Screen</div><ChevronRight className="w-5 h-5 opacity-40" /></button>
+          <button onClick={() => setActiveTutorial('backtap')} className="w-full flex items-center justify-between bg-foreground/5 p-6 rounded-[32px] font-bold active:bg-foreground/10 transition-all border border-foreground/5"><div className="flex items-center gap-4"><Fingerprint className="w-6 h-6 text-primary" />Back Tap</div><ChevronRight className="w-5 h-5 opacity-40" /></button>
+          <button onClick={handleExport} disabled={exporting} className="w-full flex items-center justify-between bg-primary/5 p-6 rounded-[32px] font-bold active:bg-primary/10 transition-all border border-primary/10 text-primary"><div className="flex items-center gap-4"><Download className="w-6 h-6" />Export Report</div><ChevronRight className="w-5 h-5 opacity-40" /></button>
+          <button onClick={logout} className="w-full flex items-center justify-between bg-red-500/5 p-6 rounded-[32px] font-bold text-red-500 active:bg-red-500/10 border border-red-500/10"><div className="flex items-center gap-4"><LogOut className="w-6 h-6" />Terminate Session</div></button>
+        </div>
       </section>
+
+      {activeTutorial && (
+        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-xl flex items-end sm:items-center justify-center p-4">
+          <div className="bg-background w-full max-w-sm rounded-[48px] p-10 space-y-8 relative max-h-[85vh] overflow-y-auto border border-foreground/5">
+            <button onClick={() => setActiveTutorial(null)} className="absolute right-8 top-8 p-3 bg-foreground/5 rounded-full"><X className="w-5 h-5" /></button>
+            <h3 className="text-3xl font-bold font-display pt-4">{tutorials[activeTutorial].title}</h3>
+            <div className="space-y-6">
+              {tutorials[activeTutorial].steps.map((step, i) => (
+                <div key={i} className="flex gap-5 items-start">
+                  <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-lg">{i + 1}</div>
+                  <div className="flex-1 space-y-3">
+                    <p className="font-bold text-foreground/80 leading-tight">{step.text}</p>
+                    {step.icon && <div className="w-fit p-4 bg-foreground/5 rounded-[24px] text-primary">{step.icon}</div>}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => setActiveTutorial(null)} className="w-full py-5 bg-primary text-primary-foreground rounded-[24px] font-bold shadow-2xl">Confirm Guide</button>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 };
