@@ -9,7 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   LogOut, Plus, Trash2, Download, BookOpen,
   ChevronRight, X, Smartphone, Fingerprint, Edit2, Check,
-  Palette, Target, Wallet, Globe, ShieldCheck
+  Palette, Target, Wallet, Globe, ShieldCheck, Coins
 } from 'lucide-react';
 
 const Settings = () => {
@@ -28,7 +28,6 @@ const Settings = () => {
   const [editingCategory, setEditingCategory] = useState(null);
   const [editValue, setEditValue] = useState('');
   const [exporting, setExporting] = useState(false);
-  const [activeTutorial, setActiveTutorial] = useState(null);
 
   const luxuryThemes = [
     { id: 'qatar', name: 'Qatar Airways', colors: ['#4b0d1a', '#c4a46d'] },
@@ -79,7 +78,7 @@ const Settings = () => {
   };
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col w-full max-w-md mx-auto p-6 pt-12 space-y-10 pb-64">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col w-full max-w-md mx-auto p-6 pt-12 space-y-10 pb-80">
       <header>
         <p className="text-foreground/30 font-bold text-[10px] uppercase tracking-widest mb-1">CONFIGURATION</p>
         <h1 className="text-4xl font-bold font-display tracking-tight">Luxury Suite</h1>
@@ -139,6 +138,29 @@ const Settings = () => {
         </div>
       </section>
 
+      {/* Quick Amount Configuration */}
+      <section className="space-y-4">
+        <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] ml-2 text-foreground/40 flex items-center gap-2"><Coins className="w-3.5 h-3.5" /> Quick Entry Values</h2>
+        <div className="bg-foreground/5 p-6 rounded-[32px] border border-foreground/5">
+          <div className="grid grid-cols-2 gap-4">
+            {quickAmounts.map((amt, i) => (
+              <div key={i} className="space-y-1.5">
+                <p className="text-[8px] font-bold text-foreground/20 uppercase tracking-widest text-center">Slot {i + 1}</p>
+                <div className="relative">
+                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-foreground/20">{currency}</span>
+                   <input
+                     type="number"
+                     value={amt}
+                     onChange={(e) => updateQuickAmount(i, e.target.value)}
+                     className="w-full bg-background/40 rounded-2xl py-4 px-8 font-bold text-center outline-none ring-1 ring-foreground/5 focus:ring-primary text-sm"
+                   />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Categories Group */}
       <section className="space-y-4">
         <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] ml-2 text-foreground/40 flex items-center gap-2"><Plus className="w-3.5 h-3.5" /> Asset Categories</h2>
@@ -157,7 +179,7 @@ const Settings = () => {
       </section>
 
       {/* Export & Out */}
-      <section className="space-y-4 pt-4 pb-20">
+      <section className="space-y-4 pt-4 pb-40">
         <button onClick={handleExport} disabled={exporting} className="w-full flex items-center justify-between bg-primary/5 p-6 rounded-[32px] font-bold active:bg-primary/10 transition-all border border-primary/10 text-primary">
           <div className="flex items-center gap-4"><Download className="w-6 h-6" />Export Report</div>
           <ChevronRight className="w-5 h-5 opacity-40" />
