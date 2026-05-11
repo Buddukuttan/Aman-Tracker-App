@@ -55,16 +55,14 @@ const Dashboard = () => {
   const handleDelete = async (id) => {
     try {
       await deleteDoc(doc(db, 'expenses', id));
-    } catch (e) {
-      console.error(e);
-    }
+    } catch (e) {}
   };
 
   const daysRemaining = getDaysRemainingInMonth();
   const smartDailyBudget = (((dailyBudget * 30) - stats.month) / daysRemaining).toFixed(0);
 
   return (
-    <div className="flex flex-col h-full max-w-md mx-auto p-6 pt-12 space-y-10 pb-48 overflow-y-auto no-scrollbar font-sans touch-pan-y">
+    <div className="flex flex-col w-full max-w-md mx-auto p-6 pt-12 space-y-10">
       <header className="flex justify-between items-end">
         <div className="space-y-1">
           <p className="text-foreground/30 font-bold text-[10px] uppercase tracking-widest">{formatIST(new Date(), 'EEEE, MMM d')}</p>

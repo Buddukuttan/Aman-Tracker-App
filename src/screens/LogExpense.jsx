@@ -48,11 +48,7 @@ const LogExpense = () => {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="flex flex-col w-full max-w-md mx-auto p-6 pt-12 pb-64"
-    >
+    <motion.div className="flex flex-col w-full max-w-md mx-auto p-6 pt-12">
       <header className="mb-12">
         <p className="text-foreground/30 font-bold text-[10px] uppercase tracking-widest">TRANSACTION</p>
         <h1 className="text-4xl font-bold font-display tracking-tight">Record</h1>
@@ -74,15 +70,7 @@ const LogExpense = () => {
 
         <div className="grid grid-cols-4 gap-4">
           {quickAmounts.map((q, i) => (
-            <motion.button
-              key={`${q}-${i}`}
-              type="button"
-              whileTap={{ scale: 0.95 }}
-              onClick={() => handleQuickAdd(Number(q))}
-              className="py-4 bg-foreground/5 text-foreground/80 font-bold rounded-[20px] text-xs border border-foreground/5"
-            >
-              +{q}
-            </motion.button>
+            <motion.button key={`${q}-${i}`} type="button" whileTap={{ scale: 0.95 }} onClick={() => handleQuickAdd(Number(q))} className="py-4 bg-foreground/5 text-foreground/80 font-bold rounded-[20px] text-xs border border-foreground/5">+{q}</motion.button>
           ))}
         </div>
 
