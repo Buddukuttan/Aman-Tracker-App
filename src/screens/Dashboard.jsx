@@ -6,7 +6,7 @@ import { useSettings } from '../context/SettingsContext';
 import { getISTBoundaries, formatIST, getDaysRemainingInMonth } from '../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  PieChart, Trash2, Trophy, ArrowUpRight, ArrowDownRight, X, ChevronRight, Info
+  PieChart, Trash2, Trophy, ArrowUpRight, ArrowDownRight, X, ChevronRight, Info, TrendingUp
 } from 'lucide-react';
 
 const Dashboard = () => {
@@ -22,17 +22,20 @@ const Dashboard = () => {
   useEffect(() => {
     if (!user) return;
     const { today, week, month } = getISTBoundaries();
+    // Fetch with snapshot listener
     const q = query(collection(db, 'expenses'), where('userId', '==', user.uid), orderBy('timestamp', 'desc'));
+
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setExpenses(docs);
+
       let tTotal = 0, wTotal = 0, mTotal = 0, lwTotal = 0, allTotal = 0;
       const breakdown = {};
       const lastWeekStart = new Date(week); lastWeekStart.setDate(lastWeekStart.getDate() - 7);
 
       docs.forEach(exp => {
-        const date = exp.timestamp?.toDate() || new Date(exp.dateIST);
-        const amt = exp.amount;
+        // CRITICAL FIX: Handle pending server timestamps which are null
+        const date = exp.timestamp?.toDate ? exp.timestamp.toDate() : (exp.dateIST ? new Date(exp.dateIST) : new Date());
+        const amt = Number(exp.amount) || 0;
         allTotal += amt;
 
         if (date >= today) tTotal += amt;
@@ -40,26 +43,44 @@ const Dashboard = () => {
         if (date >= lastWeekStart && date < week) lwTotal += amt;
         if (date >= month) {
           mTotal += amt;
-          breakdown[exp.category] = breakdown[exp.category] || { total: 0, items: [] };
-          breakdown[exp.category].total += amt;
-          breakdown[exp.category].items.push(exp);
+          if (exp.category) {
+            breakdown[exp.category] = breakdown[exp.category] || { total: 0, items: [] };
+            breakdown[exp.category].total += amt;
+            breakdown[exp.category].items.push({ ...exp, resolvedDate: date });
+          }
         }
       });
+
+      setExpenses(docs);
       setStats({ today: tTotal, week: wTotal, month: mTotal, lastWeek: lwTotal, total: allTotal });
       setCategoryBreakdown(breakdown);
       setLoading(false);
+    }, (err) => {
+      console.error("Firestore error:", err);
+      setLoading(false);
     });
+
     return () => unsubscribe();
   }, [user]);
 
   const handleDelete = async (id) => {
     try {
       await deleteDoc(doc(db, 'expenses', id));
-    } catch (e) {}
+    } catch (e) {
+      console.error("Delete failed", e);
+    }
   };
 
   const daysRemaining = getDaysRemainingInMonth();
-  const smartDailyBudget = (((dailyBudget * 30) - stats.month) / daysRemaining).toFixed(0);
+  const smartDailyBudget = (((Number(dailyBudget) * 30) - stats.month) / daysRemaining).toFixed(0);
+
+  if (loading && expenses.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }} className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col w-full max-w-md mx-auto p-6 pt-12 space-y-10">
@@ -68,38 +89,53 @@ const Dashboard = () => {
           <p className="text-foreground/30 font-bold text-[10px] uppercase tracking-widest">{formatIST(new Date(), 'EEEE, MMM d')}</p>
           <h1 className="text-4xl font-bold font-display tracking-tight">Portfolio</h1>
         </div>
-        <motion.button whileTap={{ scale: 0.9 }} onClick={() => setShowWealthReport(true)} className="w-12 h-12 bg-foreground/5 rounded-full flex items-center justify-center text-primary border border-foreground/5 transition-colors active:bg-foreground/10"><Trophy className="w-6 h-6" /></motion.button>
+        <motion.button whileTap={{ scale: 0.9 }} onClick={() => setShowWealthReport(true)} className="w-12 h-12 bg-foreground/5 rounded-full flex items-center justify-center text-primary border border-foreground/5 transition-colors active:bg-foreground/10">
+          <Trophy className="w-6 h-6" />
+        </motion.button>
       </header>
 
-      {/* Hero Card - Shows Total Outflow */}
+      {/* Hero Card - Lifetime Wealth */}
       <motion.div whileTap={{ scale: 0.98 }} className="bg-primary p-8 rounded-[48px] text-primary-foreground shadow-2xl relative overflow-hidden">
         <div className="absolute -right-8 -top-8 w-48 h-48 bg-white/10 rounded-full blur-3xl" />
-        <p className="text-primary-foreground/50 font-bold uppercase tracking-[0.3em] text-[10px] mb-3">Total Net Outflow</p>
-        <div className="text-6xl font-bold flex items-baseline tracking-tighter"><span className="text-3xl mr-1 font-light opacity-60">{currency}</span>{stats.total.toLocaleString()}</div>
-
-        {budgetEnabled && (
-          <div className="mt-10 pt-8 border-t border-white/10 flex justify-between">
-            <div className="space-y-1"><p className="text-[9px] font-bold uppercase opacity-50">Safe Daily</p><p className="text-xl font-bold">{currency}{smartDailyBudget}</p></div>
-            <div className="text-right space-y-1"><p className="text-[9px] font-bold uppercase opacity-50">Remaining</p><p className="text-xl font-bold">{daysRemaining}d</p></div>
+        <div className="relative z-10">
+          <p className="text-primary-foreground/50 font-bold uppercase tracking-[0.3em] text-[10px] mb-3">Total Net Outflow</p>
+          <div className="text-6xl font-bold flex items-baseline tracking-tighter">
+            <span className="text-3xl mr-1 font-light opacity-60">{currency}</span>
+            {(stats.total || 0).toLocaleString()}
           </div>
-        )}
+
+          {budgetEnabled && (
+            <div className="mt-10 pt-8 border-t border-white/10 flex justify-between">
+              <div className="space-y-1">
+                <p className="text-[9px] font-bold uppercase opacity-50 text-white/70">Safe Daily</p>
+                <p className="text-xl font-bold">{currency}{smartDailyBudget}</p>
+              </div>
+              <div className="text-right space-y-1">
+                <p className="text-[9px] font-bold uppercase opacity-50 text-white/70">Remaining</p>
+                <p className="text-xl font-bold">{daysRemaining}d</p>
+              </div>
+            </div>
+          )}
+        </div>
       </motion.div>
 
       <div className="grid grid-cols-2 gap-4">
         <div className="bg-foreground/5 p-6 rounded-[32px] border border-foreground/5 space-y-1">
           <p className="text-foreground/30 font-bold text-[10px] uppercase tracking-widest">Today</p>
-          <div className="text-2xl font-bold tracking-tight">{currency}{stats.today.toLocaleString()}</div>
+          <div className="text-2xl font-bold tracking-tight">{currency}{(stats.today || 0).toLocaleString()}</div>
         </div>
         <div className="bg-foreground/5 p-6 rounded-[32px] border border-foreground/5 space-y-1">
           <p className="text-foreground/30 font-bold text-[10px] uppercase tracking-widest">Month</p>
-          <div className="text-2xl font-bold tracking-tight">{currency}{stats.month.toLocaleString()}</div>
+          <div className="text-2xl font-bold tracking-tight">{currency}{(stats.month || 0).toLocaleString()}</div>
         </div>
       </div>
 
       {/* Allocation Classes */}
       <div className="space-y-6 pb-4">
         <div className="flex justify-between items-center px-2">
-          <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-foreground/40 flex items-center gap-2"><PieChart className="w-3.5 h-3.5" /> Allocation Classes</h2>
+          <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-foreground/40 flex items-center gap-2">
+            <PieChart className="w-3.5 h-3.5" /> Asset Allocation
+          </h2>
           <div className="flex items-center gap-1.5 text-[9px] font-bold text-primary uppercase bg-primary/5 px-3 py-1.5 rounded-full">
             <Info className="w-3 h-3" />
             <span>Swipe left to delete</span>
@@ -110,8 +146,16 @@ const Dashboard = () => {
           {Object.entries(categoryBreakdown).sort((a, b) => b[1].total - a[1].total).map(([cat, data]) => (
             <div key={cat} className="rounded-[40px] border border-foreground/5 bg-foreground/3 overflow-hidden shadow-sm">
               <button onClick={() => setExpandedCategory(expandedCategory === cat ? null : cat)} className="w-full p-6 flex items-center justify-between active:bg-foreground/5 transition-colors">
-                <div className="flex flex-col items-start gap-2"><span className="font-bold text-base tracking-tight">{cat}</span><div className="h-1.5 w-24 bg-foreground/10 rounded-full overflow-hidden"><motion.div animate={{ width: `${(data.total / stats.month) * 100}%` }} className="h-full bg-primary/60" /></div></div>
-                <div className="flex items-center gap-5"><div className="font-bold text-primary text-base">{currency}{data.total.toLocaleString()}</div><ChevronRight className={`w-4 h-4 text-foreground/20 transition-transform ${expandedCategory === cat ? 'rotate-90' : ''}`} /></div>
+                <div className="flex flex-col items-start gap-2">
+                  <span className="font-bold text-base tracking-tight">{cat}</span>
+                  <div className="h-1.5 w-24 bg-foreground/10 rounded-full overflow-hidden">
+                    <motion.div initial={{ width: 0 }} animate={{ width: `${((data.total || 0) / (stats.month || 1)) * 100}%` }} className="h-full bg-primary/60" />
+                  </div>
+                </div>
+                <div className="flex items-center gap-5">
+                  <div className="font-bold text-primary text-base">{currency}{(data.total || 0).toLocaleString()}</div>
+                  <ChevronRight className={`w-4 h-4 text-foreground/20 transition-transform ${expandedCategory === cat ? 'rotate-90' : ''}`} />
+                </div>
               </button>
 
               <AnimatePresence>
@@ -133,7 +177,7 @@ const Dashboard = () => {
                         >
                           <div className="flex flex-col gap-1">
                             <div className="font-bold text-sm text-foreground/80 leading-tight truncate max-w-[150px]">{item.note || 'General Entry'}</div>
-                            <div className="text-[9px] font-semibold text-foreground/20 uppercase tracking-widest">{formatIST(new Date(item.dateIST), 'MMM d • h:mm a')}</div>
+                            <div className="text-[9px] font-semibold text-foreground/20 uppercase tracking-widest">{formatIST(item.resolvedDate, 'MMM d • h:mm a')}</div>
                           </div>
                           <div className="font-bold text-sm text-foreground/60">{currency}{item.amount}</div>
                         </motion.div>
@@ -144,6 +188,13 @@ const Dashboard = () => {
               </AnimatePresence>
             </div>
           ))}
+
+          {Object.keys(categoryBreakdown).length === 0 && (
+            <div className="text-center py-20 bg-foreground/3 rounded-[40px] border border-dashed border-foreground/10">
+              <TrendingUp className="w-10 h-10 text-foreground/10 mx-auto mb-4" />
+              <p className="text-foreground/30 font-medium text-sm">No assets recorded this month</p>
+            </div>
+          )}
         </div>
       </div>
 
