@@ -52,23 +52,45 @@ const Settings = () => {
     try {
       const q = query(collection(db, 'expenses'), where('userId', '==', user.uid), orderBy('timestamp', 'desc'));
       const snapshot = await getDocs(q);
+      let totalSum = 0;
       const data = snapshot.docs.map((doc, index) => {
         const d = doc.data();
         const date = d.timestamp?.toDate() || (d.dateIST ? new Date(d.dateIST) : new Date());
+        const amt = Number(d.amount) || 0;
+        totalSum += amt;
         return {
           'Sl. No.': snapshot.docs.length - index,
           'Note': d.note || '-',
           'Category': d.category || 'Other',
-          'Amount': d.amount || 0,
+          'Amount': amt,
           'Currency': d.currency || '₹',
           'Date': formatIST(date, 'yyyy-MM-dd'),
           'Time': formatIST(date, 'HH:mm:ss')
         };
       });
+
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), "Portfolio");
-      XLSX.writeFile(wb, `KaChing_Lux_${formatIST(new Date(), 'yyyy-MM-dd')}.xlsx`);
-    } catch (e) { alert("Export failed."); } finally { setExporting(false); }
+
+      // Add Summary Row to Master Sheet
+      const masterWithTotal = [...data, {}, { 'Note': 'TOTAL EXPENDITURE', 'Amount': totalSum }];
+      const ws = XLSX.utils.json_to_sheet(masterWithTotal);
+      XLSX.utils.book_append_sheet(wb, ws, "Master Portfolio");
+
+      const categoriesInEntries = [...new Set(data.map(item => item.Category))];
+      categoriesInEntries.forEach(cat => {
+        const catData = data.filter(item => item.Category === cat);
+        const catSum = catData.reduce((acc, curr) => acc + curr.Amount, 0);
+        const catWithTotal = [...catData, {}, { 'Note': `TOTAL ${cat.toUpperCase()}`, 'Amount': catSum }];
+        const catWs = XLSX.utils.json_to_sheet(catWithTotal);
+        XLSX.utils.book_append_sheet(wb, catWs, cat.substring(0, 31));
+      });
+
+      XLSX.writeFile(wb, `Wealth_Portfolio_${formatIST(new Date(), 'yyyy-MM-dd')}.xlsx`);
+    } catch (error) {
+      alert("Export failed.");
+    } finally {
+      setExporting(false);
+    }
   };
 
   const handleRename = (oldName) => {
