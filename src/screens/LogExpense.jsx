@@ -19,6 +19,13 @@ const LogExpense = () => {
 
   useEffect(() => { if (amountInputRef.current) amountInputRef.current.focus(); }, []);
 
+  const handleQuickAdd = (value) => {
+    setAmount(prev => {
+      const current = Number(prev) || 0;
+      return (current + value).toString();
+    });
+  };
+
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
     if (!amount || isNaN(amount) || Number(amount) <= 0) return;
@@ -67,7 +74,15 @@ const LogExpense = () => {
 
         <div className="grid grid-cols-4 gap-4">
           {quickAmounts.map((q, i) => (
-            <motion.button key={`${q}-${i}`} type="button" whileTap={{ scale: 0.95 }} onClick={() => setAmount(q.toString())} className="py-4 bg-foreground/5 text-foreground/80 font-bold rounded-[20px] text-xs border border-foreground/5">+{q}</motion.button>
+            <motion.button
+              key={`${q}-${i}`}
+              type="button"
+              whileTap={{ scale: 0.95 }}
+              onClick={() => handleQuickAdd(Number(q))}
+              className="py-4 bg-foreground/5 text-foreground/80 font-bold rounded-[20px] text-xs border border-foreground/5"
+            >
+              +{q}
+            </motion.button>
           ))}
         </div>
 

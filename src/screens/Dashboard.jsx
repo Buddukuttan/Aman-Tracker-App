@@ -16,7 +16,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [expandedCategory, setExpandedCategory] = useState(null);
   const [showWealthReport, setShowWealthReport] = useState(false);
-  const [stats, setStats] = useState({ today: 0, week: 0, month: 0, lastWeek: 0 });
+  const [stats, setStats] = useState({ today: 0, week: 0, month: 0, lastWeek: 0, total: 0 });
   const [categoryBreakdown, setCategoryBreakdown] = useState({});
 
   useEffect(() => {
@@ -26,12 +26,15 @@ const Dashboard = () => {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setExpenses(docs);
-      let tTotal = 0, wTotal = 0, mTotal = 0, lwTotal = 0;
+      let tTotal = 0, wTotal = 0, mTotal = 0, lwTotal = 0, allTotal = 0;
       const breakdown = {};
       const lastWeekStart = new Date(week); lastWeekStart.setDate(lastWeekStart.getDate() - 7);
+
       docs.forEach(exp => {
         const date = exp.timestamp?.toDate() || new Date(exp.dateIST);
         const amt = exp.amount;
+        allTotal += amt;
+
         if (date >= today) tTotal += amt;
         if (date >= week) wTotal += amt;
         if (date >= lastWeekStart && date < week) lwTotal += amt;
@@ -42,7 +45,7 @@ const Dashboard = () => {
           breakdown[exp.category].items.push(exp);
         }
       });
-      setStats({ today: tTotal, week: wTotal, month: mTotal, lastWeek: lwTotal });
+      setStats({ today: tTotal, week: wTotal, month: mTotal, lastWeek: lwTotal, total: allTotal });
       setCategoryBreakdown(breakdown);
       setLoading(false);
     });
@@ -61,7 +64,7 @@ const Dashboard = () => {
   const smartDailyBudget = (((dailyBudget * 30) - stats.month) / daysRemaining).toFixed(0);
 
   return (
-    <div className="flex flex-col h-full max-w-md mx-auto p-6 pt-12 space-y-10 pb-40 overflow-y-auto no-scrollbar font-sans touch-pan-y">
+    <div className="flex flex-col h-full max-w-md mx-auto p-6 pt-12 space-y-10 pb-48 overflow-y-auto no-scrollbar font-sans touch-pan-y">
       <header className="flex justify-between items-end">
         <div className="space-y-1">
           <p className="text-foreground/30 font-bold text-[10px] uppercase tracking-widest">{formatIST(new Date(), 'EEEE, MMM d')}</p>
@@ -70,11 +73,11 @@ const Dashboard = () => {
         <motion.button whileTap={{ scale: 0.9 }} onClick={() => setShowWealthReport(true)} className="w-12 h-12 bg-foreground/5 rounded-full flex items-center justify-center text-primary border border-foreground/5 transition-colors active:bg-foreground/10"><Trophy className="w-6 h-6" /></motion.button>
       </header>
 
-      {/* Hero Card */}
+      {/* Hero Card - Shows Total Outflow */}
       <motion.div whileTap={{ scale: 0.98 }} className="bg-primary p-8 rounded-[48px] text-primary-foreground shadow-2xl relative overflow-hidden">
         <div className="absolute -right-8 -top-8 w-48 h-48 bg-white/10 rounded-full blur-3xl" />
-        <p className="text-primary-foreground/50 font-bold uppercase tracking-[0.3em] text-[10px] mb-3">Net Outflow</p>
-        <div className="text-6xl font-bold flex items-baseline tracking-tighter"><span className="text-3xl mr-1 font-light opacity-60">{currency}</span>{stats.month.toLocaleString()}</div>
+        <p className="text-primary-foreground/50 font-bold uppercase tracking-[0.3em] text-[10px] mb-3">Total Net Outflow</p>
+        <div className="text-6xl font-bold flex items-baseline tracking-tighter"><span className="text-3xl mr-1 font-light opacity-60">{currency}</span>{stats.total.toLocaleString()}</div>
 
         {budgetEnabled && (
           <div className="mt-10 pt-8 border-t border-white/10 flex justify-between">
@@ -83,6 +86,17 @@ const Dashboard = () => {
           </div>
         )}
       </motion.div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="bg-foreground/5 p-6 rounded-[32px] border border-foreground/5 space-y-1">
+          <p className="text-foreground/30 font-bold text-[10px] uppercase tracking-widest">Today</p>
+          <div className="text-2xl font-bold tracking-tight">{currency}{stats.today.toLocaleString()}</div>
+        </div>
+        <div className="bg-foreground/5 p-6 rounded-[32px] border border-foreground/5 space-y-1">
+          <p className="text-foreground/30 font-bold text-[10px] uppercase tracking-widest">Month</p>
+          <div className="text-2xl font-bold tracking-tight">{currency}{stats.month.toLocaleString()}</div>
+        </div>
+      </div>
 
       {/* Allocation Classes */}
       <div className="space-y-6 pb-4">
@@ -108,23 +122,14 @@ const Dashboard = () => {
                     <div className="pt-2" />
                     {data.items.map((item) => (
                       <div key={item.id} className="relative h-20 group overflow-hidden bg-red-500 rounded-[32px]">
-                        {/* THE DELETE INDICATOR (REAR LAYER - REVEALED AS USER SWIPES) */}
-                        <div className="absolute inset-0 flex justify-end items-center px-8 text-white font-black text-[10px] tracking-widest uppercase">
-                           RELEASE TO DELETE
-                        </div>
-
-                        {/* THE CONTENT (FRONT LAYER) */}
+                        <div className="absolute inset-0 flex justify-end items-center px-8 text-white font-black text-[10px] tracking-widest uppercase">RELEASE TO DELETE</div>
                         <motion.div
                           drag="x"
                           dragDirectionLock
                           dragConstraints={{ left: -300, right: 0 }}
                           dragElastic={{ left: 0.6, right: 0.05 }}
                           onDragEnd={(_, info) => {
-                            // On iPhone, info.offset.x or info.point.x are used.
-                            // Using info.offset.x with a more aggressive threshold for touch.
-                            if (info.offset.x < -120) {
-                              handleDelete(item.id);
-                            }
+                            if (info.offset.x < -120) handleDelete(item.id);
                           }}
                           className="absolute inset-0 flex justify-between items-center px-6 rounded-[32px] bg-background border border-foreground/5 z-10 touch-pan-x"
                         >

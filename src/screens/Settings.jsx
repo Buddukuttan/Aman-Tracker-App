@@ -79,7 +79,7 @@ const Settings = () => {
   };
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col h-full max-w-md mx-auto p-6 pt-12 space-y-10 pb-32">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col w-full max-w-md mx-auto p-6 pt-12 space-y-10 pb-64">
       <header>
         <p className="text-foreground/30 font-bold text-[10px] uppercase tracking-widest mb-1">CONFIGURATION</p>
         <h1 className="text-4xl font-bold font-display tracking-tight">Luxury Suite</h1>
