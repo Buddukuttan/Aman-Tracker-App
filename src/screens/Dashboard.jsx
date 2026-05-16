@@ -11,13 +11,14 @@ import {
 
 const Dashboard = () => {
   const { user } = useAuth();
-  const { budgetEnabled, dailyBudget, currency } = useSettings();
+  const { budgetEnabled, dailyBudget, currency, travelMode, currentTrip, endTrip } = useSettings();
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedCategory, setExpandedCategory] = useState(null);
   const [showWealthReport, setShowWealthReport] = useState(false);
   const [stats, setStats] = useState({ today: 0, week: 0, month: 0, lastWeek: 0, total: 0 });
   const [categoryBreakdown, setCategoryBreakdown] = useState({});
+  const [tripStats, setTripStats] = useState({ total: 0, breakdown: {} });
 
   useEffect(() => {
     if (!user) return;
@@ -31,6 +32,9 @@ const Dashboard = () => {
       let tTotal = 0, wTotal = 0, mTotal = 0, lwTotal = 0, allTotal = 0;
       const breakdown = {};
       const lastWeekStart = new Date(week); lastWeekStart.setDate(lastWeekStart.getDate() - 7);
+
+      let tripTotal = 0;
+      const tripBreakdown = {};
 
       docs.forEach(exp => {
         // CRITICAL FIX: Handle pending server timestamps which are null
@@ -49,11 +53,19 @@ const Dashboard = () => {
             breakdown[exp.category].items.push({ ...exp, resolvedDate: date });
           }
         }
+
+        if (travelMode && currentTrip && exp.tripId === currentTrip.id) {
+          tripTotal += amt;
+          if (exp.category) {
+            tripBreakdown[exp.category] = (tripBreakdown[exp.category] || 0) + amt;
+          }
+        }
       });
 
       setExpenses(docs);
       setStats({ today: tTotal, week: wTotal, month: mTotal, lastWeek: lwTotal, total: allTotal });
       setCategoryBreakdown(breakdown);
+      setTripStats({ total: tripTotal, breakdown: tripBreakdown });
       setLoading(false);
     }, (err) => {
       console.error("Firestore error:", err);
@@ -93,6 +105,66 @@ const Dashboard = () => {
           <Trophy className="w-6 h-6" />
         </motion.button>
       </header>
+
+      {/* Travel Mode Dashboard */}
+      {travelMode && currentTrip && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-foreground/5 p-8 rounded-[48px] border border-primary/20 relative overflow-hidden">
+          <div className="absolute right-0 top-0 p-6">
+             <div className="bg-primary/10 text-primary px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest">Live Trip</div>
+          </div>
+          <div className="space-y-6">
+            <div>
+              <p className="text-foreground/30 font-bold uppercase tracking-[0.2em] text-[10px] mb-1">{currentTrip.name}</p>
+              <div className="text-4xl font-bold tracking-tighter">
+                <span className="text-xl mr-1 opacity-40">{currency}</span>
+                {tripStats.total.toLocaleString()}
+              </div>
+            </div>
+
+            {currentTrip.budget && (
+              <div className="space-y-2">
+                <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-foreground/40">
+                  <span>Balance</span>
+                  <span>{((tripStats.total / currentTrip.budget) * 100).toFixed(0)}% Spent</span>
+                </div>
+                <div className="h-2 bg-foreground/10 rounded-full overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.min((tripStats.total / currentTrip.budget) * 100, 100)}%` }}
+                    className={`h-full ${tripStats.total > currentTrip.budget ? 'bg-red-500' : 'bg-primary'}`}
+                  />
+                </div>
+                <p className="text-right font-bold text-sm">
+                  {currency}{(currentTrip.budget - tripStats.total).toLocaleString()} remaining
+                </p>
+              </div>
+            )}
+
+            <div className="pt-4 border-t border-foreground/5">
+               <p className="text-[10px] font-bold uppercase tracking-widest text-foreground/30 mb-3">Trip Breakdown</p>
+               <div className="grid grid-cols-2 gap-3">
+                 {Object.entries(tripStats.breakdown).map(([cat, amt]) => (
+                   <div key={cat} className="flex justify-between items-center bg-background/50 p-3 rounded-2xl border border-foreground/5">
+                      <span className="text-[10px] font-bold text-foreground/60">{cat}</span>
+                      <span className="text-[10px] font-bold text-primary">{currency}{amt.toLocaleString()}</span>
+                   </div>
+                 ))}
+               </div>
+            </div>
+
+            <button
+              onClick={() => {
+                if (confirm("End this trip and save to history?")) {
+                  endTrip(tripStats.total);
+                }
+              }}
+              className="w-full py-4 bg-red-500/10 text-red-500 rounded-2xl font-bold text-xs uppercase tracking-widest active:bg-red-500/20 transition-colors"
+            >
+              Terminate Trip
+            </button>
+          </div>
+        </motion.div>
+      )}
 
       {/* Hero Card - Lifetime Wealth */}
       <motion.div whileTap={{ scale: 0.98 }} className="bg-primary p-8 rounded-[48px] text-primary-foreground shadow-2xl relative overflow-hidden">

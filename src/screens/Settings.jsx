@@ -6,10 +6,11 @@ import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { formatIST } from '../lib/utils';
 import * as XLSX from 'xlsx';
 import { motion, AnimatePresence } from 'framer-motion';
+import { currencies } from '../lib/currencies';
 import {
-  LogOut, Plus, Trash2, Download, BookOpen,
+  LogOut, Plus, Trash2, Download, BookOpen, Search,
   ChevronRight, X, Smartphone, Fingerprint, Edit2, Check,
-  Palette, Target, Wallet, Globe, ShieldCheck, Coins, HelpCircle
+  Palette, Target, Wallet, Globe, ShieldCheck, Coins, HelpCircle, Briefcase, History
 } from 'lucide-react';
 
 const Settings = () => {
@@ -21,7 +22,10 @@ const Settings = () => {
     budgetEnabled, setBudgetEnabled,
     dailyBudget, setDailyBudget,
     biometricEnabled, setBiometricEnabled,
-    currency, setCurrency
+    currency, setCurrency,
+    travelMode, setTravelMode,
+    currentTrip, startTrip, endTrip,
+    trips, deleteTrip
   } = useSettings();
 
   const [newCategory, setNewCategory] = useState('');
@@ -29,6 +33,12 @@ const Settings = () => {
   const [editValue, setEditValue] = useState('');
   const [exporting, setExporting] = useState(false);
   const [activeTutorial, setActiveTutorial] = useState(null);
+  const [showCurrencyModal, setShowCurrencyModal] = useState(false);
+  const [currencySearch, setCurrencySearch] = useState('');
+  const [showTripModal, setShowTripModal] = useState(false);
+  const [tripName, setTripName] = useState('');
+  const [tripBudget, setTripBudget] = useState('');
+  const [showTravelHistory, setShowTravelHistory] = useState(false);
 
   const luxuryThemes = [
     { id: 'qatar', name: 'Qatar Airways', colors: ['#4b0d1a', '#c4a46d'] },
@@ -60,29 +70,30 @@ const Settings = () => {
     }
   };
 
-  const handleDetectCurrency = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(() => {
-        setCurrency('$');
-        alert("Currency updated to $ (Simulated)");
-      });
-    }
-  };
+  const filteredCurrencies = currencies.filter(c =>
+    c.name.toLowerCase().includes(currencySearch.toLowerCase()) ||
+    c.code.toLowerCase().includes(currencySearch.toLowerCase())
+  );
 
-  const handleExport = async () => {
+  const handleExport = async (tripId = null, tripTitle = null) => {
     if (!user) return;
     setExporting(true);
     try {
-      const q = query(collection(db, 'expenses'), where('userId', '==', user.uid), orderBy('timestamp', 'desc'));
+      let q = query(collection(db, 'expenses'), where('userId', '==', user.uid), orderBy('timestamp', 'desc'));
       const snapshot = await getDocs(q);
       let totalSum = 0;
-      const data = snapshot.docs.map((doc, index) => {
-        const d = doc.data();
+      let rawData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+      if (tripId) {
+        rawData = rawData.filter(d => d.tripId === tripId);
+      }
+
+      const data = rawData.map((d, index) => {
         const date = d.timestamp?.toDate() || (d.dateIST ? new Date(d.dateIST) : new Date());
         const amt = Number(d.amount) || 0;
         totalSum += amt;
         return {
-          'Sl. No.': snapshot.docs.length - index,
+          'Sl. No.': rawData.length - index,
           'Note': d.note || '-',
           'Category': d.category || 'Other',
           'Amount': amt,
@@ -106,7 +117,8 @@ const Settings = () => {
         XLSX.utils.book_append_sheet(wb, catWs, cat.substring(0, 31));
       });
 
-      XLSX.writeFile(wb, `Wealth_Portfolio_${formatIST(new Date(), 'yyyy-MM-dd')}.xlsx`);
+      const fileName = tripTitle ? `Trip_${tripTitle}_${formatIST(new Date(), 'yyyy-MM-dd')}.xlsx` : `Wealth_Portfolio_${formatIST(new Date(), 'yyyy-MM-dd')}.xlsx`;
+      XLSX.writeFile(wb, fileName);
     } catch (e) { alert("Export failed."); } finally { setExporting(false); }
   };
 
@@ -150,13 +162,13 @@ const Settings = () => {
             <div className={`p-3 rounded-2xl ${biometricEnabled ? 'bg-primary text-primary-foreground' : 'bg-foreground/10 text-foreground/40'}`}><ShieldCheck className="w-6 h-6" /></div>
             <span className="text-[10px] font-bold uppercase tracking-widest">{biometricEnabled ? 'FaceID ON' : 'Security OFF'}</span>
           </button>
-          <div className="bg-foreground/5 p-6 rounded-[32px] border border-foreground/5 flex flex-col items-center gap-3">
-             <button onClick={handleDetectCurrency} className="p-3 rounded-2xl bg-foreground/10 text-primary active:scale-90 transition-transform"><Globe className="w-6 h-6" /></button>
+          <button onClick={() => setShowCurrencyModal(true)} className="bg-foreground/5 p-6 rounded-[32px] border border-foreground/5 flex flex-col items-center gap-3 active:scale-95 transition-all">
+             <div className="p-3 rounded-2xl bg-foreground/10 text-primary"><Globe className="w-6 h-6" /></div>
              <div className="flex items-center gap-2">
                 <span className="text-[10px] font-bold uppercase tracking-widest text-foreground/40">Unit</span>
-                <input type="text" maxLength={1} value={currency} onChange={(e) => setCurrency(e.target.value)} className="w-8 bg-transparent text-center font-bold text-lg outline-none" />
+                <span className="font-bold text-lg">{currency}</span>
              </div>
-          </div>
+          </button>
         </div>
       </section>
 
@@ -187,16 +199,203 @@ const Settings = () => {
         </div>
       </section>
 
+      {/* Travel Mode Section */}
+      <section className="space-y-4">
+        <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] ml-2 text-foreground/40 flex items-center gap-2"><Briefcase className="w-3.5 h-3.5" /> Travel Mode</h2>
+        <div className="bg-foreground/5 rounded-[32px] overflow-hidden border border-foreground/5">
+          <div className="p-6 flex items-center justify-between border-b border-foreground/5">
+            <div className="flex items-center gap-4">
+              <div className={`p-3 rounded-2xl ${travelMode ? 'bg-primary text-primary-foreground' : 'bg-foreground/10 text-foreground/40'}`}><Briefcase className="w-6 h-6" /></div>
+              <div>
+                <p className="font-bold">Travel Mode</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-[10px] text-foreground/40 uppercase font-bold tracking-widest">{travelMode ? currentTrip?.name : 'Inactive'}</p>
+                  {travelMode && currentTrip && (
+                    <button onClick={(e) => { e.stopPropagation(); handleExport(currentTrip.id, currentTrip.name); }} className="text-primary active:scale-90 transition-transform">
+                      <Download className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                if (travelMode) {
+                   // End trip logic moved to Dashboard but can be here too
+                   // For now, toggle off just disables it if no active trip,
+                   // or we can show the modal to start a trip
+                   if (currentTrip) {
+                      // Already has trip, maybe we just want to disable it?
+                      // Actually requirement says "when toggle this on 2 pop ups open"
+                   }
+                } else {
+                  setShowTripModal(true);
+                }
+              }}
+              className={`w-14 h-8 rounded-full relative transition-colors ${travelMode ? 'bg-primary' : 'bg-foreground/20'}`}
+            >
+              <motion.div animate={{ x: travelMode ? 24 : 4 }} className="absolute top-1 w-6 h-6 bg-white rounded-full shadow-sm" />
+            </button>
+          </div>
+          <button onClick={() => setShowTravelHistory(true)} className="w-full flex items-center justify-between p-6 active:bg-foreground/5 transition-all">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-2xl bg-foreground/10 text-foreground/40"><History className="w-6 h-6" /></div>
+              <span className="font-bold">Travel History</span>
+            </div>
+            <ChevronRight className="w-5 h-5 opacity-40" />
+          </button>
+        </div>
+      </section>
+
       {/* Guides & System */}
       <section className="space-y-4">
         <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] ml-2 text-foreground/40 flex items-center gap-2"><HelpCircle className="w-3.5 h-3.5" /> Guides & System</h2>
         <div className="space-y-3">
           <button onClick={() => setActiveTutorial('pwa')} className="w-full flex items-center justify-between bg-foreground/5 p-6 rounded-[32px] font-bold active:bg-foreground/10 transition-all border border-foreground/5"><div className="flex items-center gap-4"><Smartphone className="w-6 h-6 text-primary" />Home Screen</div><ChevronRight className="w-5 h-5 opacity-40" /></button>
           <button onClick={() => setActiveTutorial('backtap')} className="w-full flex items-center justify-between bg-foreground/5 p-6 rounded-[32px] font-bold active:bg-foreground/10 transition-all border border-foreground/5"><div className="flex items-center gap-4"><Fingerprint className="w-6 h-6 text-primary" />Back Tap</div><ChevronRight className="w-5 h-5 opacity-40" /></button>
-          <button onClick={handleExport} disabled={exporting} className="w-full flex items-center justify-between bg-primary/5 p-6 rounded-[32px] font-bold active:bg-primary/10 transition-all border border-primary/10 text-primary"><div className="flex items-center gap-4"><Download className="w-6 h-6" />Export Report</div><ChevronRight className="w-5 h-5 opacity-40" /></button>
+          <button onClick={() => handleExport()} disabled={exporting} className="w-full flex items-center justify-between bg-primary/5 p-6 rounded-[32px] font-bold active:bg-primary/10 transition-all border border-primary/10 text-primary"><div className="flex items-center gap-4"><Download className="w-6 h-6" />Export Report</div><ChevronRight className="w-5 h-5 opacity-40" /></button>
           <button onClick={logout} className="w-full flex items-center justify-between bg-red-500/5 p-6 rounded-[32px] font-bold text-red-500 active:bg-red-500/10 border border-red-500/10"><div className="flex items-center gap-4"><LogOut className="w-6 h-6" />Terminate Session</div></button>
         </div>
       </section>
+
+      {/* Currency Modal */}
+      <AnimatePresence>
+        {showCurrencyModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[110] bg-black/80 backdrop-blur-xl flex items-end sm:items-center justify-center p-4">
+            <motion.div initial={{ y: 100 }} animate={{ y: 0 }} exit={{ y: 100 }} className="bg-background w-full max-w-sm rounded-[48px] p-8 space-y-6 relative max-h-[80vh] overflow-hidden flex flex-col border border-foreground/5">
+              <button onClick={() => setShowCurrencyModal(false)} className="absolute right-6 top-6 p-2 bg-foreground/5 rounded-full"><X className="w-5 h-5" /></button>
+              <h3 className="text-2xl font-bold font-display pt-2 text-center">Select Currency</h3>
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/30" />
+                <input
+                  type="text"
+                  placeholder="Search currencies..."
+                  value={currencySearch}
+                  onChange={(e) => setCurrencySearch(e.target.value)}
+                  className="w-full bg-foreground/5 rounded-2xl py-4 pl-12 pr-4 outline-none border border-foreground/5 font-medium"
+                />
+              </div>
+              <div className="flex-1 overflow-y-auto space-y-2 no-scrollbar px-1">
+                {filteredCurrencies.map((c) => (
+                  <button
+                    key={c.code}
+                    onClick={() => { setCurrency(c.symbol); setShowCurrencyModal(false); }}
+                    className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all ${currency === c.symbol ? 'bg-primary/10 text-primary' : 'active:bg-foreground/5'}`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <span className="w-8 font-bold text-center text-lg">{c.symbol}</span>
+                      <div className="text-left">
+                        <p className="font-bold text-sm">{c.code}</p>
+                        <p className="text-[10px] text-foreground/40 font-medium">{c.name}</p>
+                      </div>
+                    </div>
+                    {currency === c.symbol && <Check className="w-4 h-4" />}
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Start Trip Modal */}
+      <AnimatePresence>
+        {showTripModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[110] bg-black/80 backdrop-blur-xl flex items-center justify-center p-4">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-background w-full max-w-sm rounded-[48px] p-10 space-y-8 relative border border-foreground/5">
+              <button onClick={() => setShowTripModal(false)} className="absolute right-8 top-8 p-3 bg-foreground/5 rounded-full"><X className="w-5 h-5" /></button>
+              <div className="text-center space-y-2 pt-4">
+                <h3 className="text-3xl font-bold font-display">New Adventure</h3>
+                <p className="text-foreground/40 text-sm">Where are you heading today?</p>
+              </div>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-widest ml-4 text-foreground/40">Trip Name</label>
+                  <input
+                    autoFocus
+                    type="text"
+                    placeholder="e.g. Paris Summer"
+                    value={tripName}
+                    onChange={(e) => setTripName(e.target.value)}
+                    className="w-full bg-foreground/5 rounded-[24px] py-6 px-8 outline-none border border-foreground/5 font-bold"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-widest ml-4 text-foreground/40">Optional Budget ({currency})</label>
+                  <input
+                    type="number"
+                    placeholder="Set a limit..."
+                    value={tripBudget}
+                    onChange={(e) => setTripBudget(e.target.value)}
+                    className="w-full bg-foreground/5 rounded-[24px] py-6 px-8 outline-none border border-foreground/5 font-bold"
+                  />
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  if (tripName.trim()) {
+                    startTrip(tripName.trim(), tripBudget);
+                    setShowTripModal(false);
+                    setTripName('');
+                    setTripBudget('');
+                  }
+                }}
+                disabled={!tripName.trim()}
+                className="w-full py-6 bg-primary text-primary-foreground rounded-[24px] font-bold shadow-2xl disabled:opacity-50"
+              >
+                Launch Trip
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Travel History Modal */}
+      <AnimatePresence>
+        {showTravelHistory && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[110] bg-black/80 backdrop-blur-xl flex items-end sm:items-center justify-center p-4">
+            <motion.div initial={{ y: 100 }} animate={{ y: 0 }} exit={{ y: 100 }} className="bg-background w-full max-w-sm rounded-[48px] p-8 space-y-6 relative max-h-[80vh] overflow-hidden flex flex-col border border-foreground/5">
+              <button onClick={() => setShowTravelHistory(false)} className="absolute right-6 top-6 p-2 bg-foreground/5 rounded-full"><X className="w-5 h-5" /></button>
+              <h3 className="text-2xl font-bold font-display pt-2 text-center">Past Adventures</h3>
+              <div className="flex-1 overflow-y-auto space-y-4 no-scrollbar px-1">
+                {trips.length === 0 ? (
+                  <div className="text-center py-20 text-foreground/20">
+                    <History className="w-12 h-12 mx-auto mb-4 opacity-10" />
+                    <p className="font-bold">No trips recorded yet</p>
+                  </div>
+                ) : (
+                  trips.map((trip) => (
+                    <div key={trip.id} className="bg-foreground/5 p-6 rounded-[32px] border border-foreground/5 flex flex-col gap-4">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-bold text-lg">{trip.name}</h4>
+                          <p className="text-[10px] text-foreground/40 font-bold uppercase tracking-widest">{formatIST(new Date(trip.startDate), 'MMM d, yyyy')}</p>
+                        </div>
+                        <button onClick={() => handleExport(trip.id, trip.name)} className="p-3 bg-primary/10 text-primary rounded-2xl active:scale-90 transition-transform">
+                          <Download className="w-5 h-5" />
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                         <div className="space-y-1">
+                            <p className="text-[8px] font-bold text-foreground/30 uppercase tracking-[0.2em]">Spent</p>
+                            <p className="font-bold">{currency}{trip.totalSpent?.toLocaleString() || 0}</p>
+                         </div>
+                         {trip.budget && (
+                           <div className="space-y-1">
+                              <p className="text-[8px] font-bold text-foreground/30 uppercase tracking-[0.2em]">Budget</p>
+                              <p className="font-bold">{currency}{trip.budget?.toLocaleString()}</p>
+                           </div>
+                         )}
+                      </div>
+                      <button onClick={() => deleteTrip(trip.id)} className="text-[9px] font-bold text-red-500 uppercase tracking-widest self-end">Delete Records</button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {activeTutorial && (
         <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-xl flex items-end sm:items-center justify-center p-4">
