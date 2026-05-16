@@ -4,6 +4,7 @@ import { collection, query, where, orderBy, onSnapshot, deleteDoc, doc } from 'f
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 import { getISTBoundaries, formatIST, getDaysRemainingInMonth } from '../lib/utils';
+import SpendingChart from '../components/SpendingChart';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   PieChart, Trash2, Trophy, ArrowUpRight, ArrowDownRight, X, ChevronRight, Info, TrendingUp
@@ -201,6 +202,8 @@ const Dashboard = () => {
           <div className="text-2xl font-bold tracking-tight">{currency}{(stats.month || 0).toLocaleString()}</div>
         </div>
       </div>
+
+      <SpendingChart expenses={expenses} currency={currency} />
 
       {/* Allocation Classes */}
       <div className="space-y-6 pb-4">
