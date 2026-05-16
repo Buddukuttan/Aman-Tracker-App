@@ -39,6 +39,20 @@ export const SettingsProvider = ({ children }) => {
     return localStorage.getItem('kaching_currency') || '₹';
   });
 
+  const [travelMode, setTravelMode] = useState(() => {
+    return localStorage.getItem('kaching_travelMode') === 'true';
+  });
+
+  const [currentTrip, setCurrentTrip] = useState(() => {
+    const saved = localStorage.getItem('kaching_currentTrip');
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  const [trips, setTrips] = useState(() => {
+    const saved = localStorage.getItem('kaching_trips');
+    return saved ? JSON.parse(saved) : [];
+  });
+
   useEffect(() => {
     localStorage.setItem('kaching_categories', JSON.stringify(categories));
   }, [categories]);
@@ -68,6 +82,46 @@ export const SettingsProvider = ({ children }) => {
     localStorage.setItem('kaching_currency', currency);
   }, [currency]);
 
+  useEffect(() => {
+    localStorage.setItem('kaching_travelMode', travelMode);
+  }, [travelMode]);
+
+  useEffect(() => {
+    localStorage.setItem('kaching_currentTrip', JSON.stringify(currentTrip));
+  }, [currentTrip]);
+
+  useEffect(() => {
+    localStorage.setItem('kaching_trips', JSON.stringify(trips));
+  }, [trips]);
+
+  const startTrip = (name, budget) => {
+    const newTrip = {
+      id: Date.now().toString(),
+      name,
+      budget: budget ? Number(budget) : null,
+      startDate: new Date().toISOString(),
+    };
+    setCurrentTrip(newTrip);
+    setTravelMode(true);
+  };
+
+  const endTrip = (totalSpent) => {
+    if (currentTrip) {
+      const completedTrip = {
+        ...currentTrip,
+        endDate: new Date().toISOString(),
+        totalSpent
+      };
+      setTrips([completedTrip, ...trips]);
+      setCurrentTrip(null);
+      setTravelMode(false);
+    }
+  };
+
+  const deleteTrip = (id) => {
+    setTrips(trips.filter(t => t.id !== id));
+  };
+
   const addCategory = (name) => {
     if (name && !categories.includes(name)) setCategories([...categories, name]);
   };
@@ -89,7 +143,10 @@ export const SettingsProvider = ({ children }) => {
     budgetEnabled, setBudgetEnabled,
     dailyBudget, setDailyBudget,
     biometricEnabled, setBiometricEnabled,
-    currency, setCurrency
+    currency, setCurrency,
+    travelMode, setTravelMode,
+    currentTrip, startTrip, endTrip,
+    trips, deleteTrip
   };
 
   return (
