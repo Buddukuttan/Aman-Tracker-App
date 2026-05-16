@@ -9,7 +9,7 @@ import { getISTDate } from '../lib/utils';
 
 const LogExpense = () => {
   const { user } = useAuth();
-  const { categories, quickAmounts, currency, travelMode, currentTrip } = useSettings();
+  const { categories, quickAmounts, currency, currencyCode, travelMode, currentTrip } = useSettings();
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState(categories[0]);
   const [note, setNote] = useState('');
@@ -41,6 +41,7 @@ const LogExpense = () => {
         dateIST: istDate.toISOString(),
         createdAt: istDate.getTime(),
         currency,
+        currencyCode,
         ...(travelMode && currentTrip ? { tripId: currentTrip.id, tripName: currentTrip.name } : {})
       });
       setShowSuccess(true); setAmount(''); setNote(''); setCategory(categories[0]);

@@ -5,7 +5,10 @@ import { toZonedTime } from 'date-fns-tz';
 
 const IST_TIMEZONE = 'Asia/Kolkata';
 
+import { useSettings } from '../context/SettingsContext';
+
 const SpendingChart = ({ expenses, currency }) => {
+  const { convertAmount } = useSettings();
   const [view, setView] = useState('daily'); // 'daily' or 'weekly'
 
   const chartData = useMemo(() => {
@@ -21,7 +24,7 @@ const SpendingChart = ({ expenses, currency }) => {
         const total = expenses.reduce((acc, exp) => {
           const expDate = exp.timestamp?.toDate ? exp.timestamp.toDate() : (exp.dateIST ? new Date(exp.dateIST) : new Date());
           if (isSameDay(startOfDay(expDate), dayStart)) {
-            return acc + (Number(exp.amount) || 0);
+            return acc + convertAmount(Number(exp.amount) || 0, exp.currencyCode || 'INR');
           }
           return acc;
         }, 0);
@@ -38,7 +41,7 @@ const SpendingChart = ({ expenses, currency }) => {
         const total = expenses.reduce((acc, exp) => {
           const expDate = exp.timestamp?.toDate ? exp.timestamp.toDate() : (exp.dateIST ? new Date(exp.dateIST) : new Date());
           if (isSameWeek(expDate, weekStart, { weekStartsOn: 1 })) {
-            return acc + (Number(exp.amount) || 0);
+            return acc + convertAmount(Number(exp.amount) || 0, exp.currencyCode || 'INR');
           }
           return acc;
         }, 0);

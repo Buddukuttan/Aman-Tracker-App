@@ -11,6 +11,7 @@ export const currencies = [
   { code: 'AED', name: 'UAE Dirham', symbol: 'د.إ' },
   { code: 'SGD', name: 'Singapore Dollar', symbol: 'S$' },
   { code: 'SAR', name: 'Saudi Riyal', symbol: 'ر.س' },
+  { code: 'QAR', name: 'Qatari Rial', symbol: 'ر.ق' },
   { code: 'RUB', name: 'Russian Ruble', symbol: '₽' },
   { code: 'KRW', name: 'South Korean Won', symbol: '₩' },
   { code: 'BRL', name: 'Brazilian Real', symbol: 'R$' },

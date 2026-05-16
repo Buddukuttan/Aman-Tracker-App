@@ -12,7 +12,7 @@ import {
 
 const Dashboard = () => {
   const { user } = useAuth();
-  const { budgetEnabled, dailyBudget, currency, travelMode, currentTrip, endTrip } = useSettings();
+  const { budgetEnabled, dailyBudget, currency, currencyCode, convertAmount, travelMode, currentTrip, endTrip } = useSettings();
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedCategory, setExpandedCategory] = useState(null);
@@ -40,7 +40,11 @@ const Dashboard = () => {
       docs.forEach(exp => {
         // CRITICAL FIX: Handle pending server timestamps which are null
         const date = exp.timestamp?.toDate ? exp.timestamp.toDate() : (exp.dateIST ? new Date(exp.dateIST) : new Date());
-        const amt = Number(exp.amount) || 0;
+
+        // Convert amount to current currency if it was recorded in a different one
+        const originalAmt = Number(exp.amount) || 0;
+        const amt = convertAmount(originalAmt, exp.currencyCode || 'INR'); // Default to INR for old records
+
         allTotal += amt;
 
         if (date >= today) tTotal += amt;
@@ -254,7 +258,12 @@ const Dashboard = () => {
                             <div className="font-bold text-sm text-foreground/80 leading-tight truncate max-w-[150px]">{item.note || 'General Entry'}</div>
                             <div className="text-[9px] font-semibold text-foreground/20 uppercase tracking-widest">{formatIST(item.resolvedDate, 'MMM d • h:mm a')}</div>
                           </div>
-                          <div className="font-bold text-sm text-foreground/60">{currency}{item.amount}</div>
+                          <div className="flex flex-col items-end">
+                            <div className="font-bold text-sm text-foreground/60">{currency}{convertAmount(item.amount, item.currencyCode || 'INR').toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</div>
+                            {item.currencyCode && item.currencyCode !== currencyCode && (
+                              <div className="text-[8px] opacity-30 font-bold">{item.currency}{item.amount}</div>
+                            )}
+                          </div>
                         </motion.div>
                       </div>
                     ))}

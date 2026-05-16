@@ -39,6 +39,12 @@ export const SettingsProvider = ({ children }) => {
     return localStorage.getItem('kaching_currency') || '₹';
   });
 
+  const [currencyCode, setCurrencyCode] = useState(() => {
+    return localStorage.getItem('kaching_currencyCode') || 'INR';
+  });
+
+  const [exchangeRates, setExchangeRates] = useState({});
+
   const [travelMode, setTravelMode] = useState(() => {
     return localStorage.getItem('kaching_travelMode') === 'true';
   });
@@ -81,6 +87,25 @@ export const SettingsProvider = ({ children }) => {
   useEffect(() => {
     localStorage.setItem('kaching_currency', currency);
   }, [currency]);
+
+  useEffect(() => {
+    localStorage.setItem('kaching_currencyCode', currencyCode);
+  }, [currencyCode]);
+
+  useEffect(() => {
+    const fetchRates = async () => {
+      try {
+        const res = await fetch(`https://open.er-api.com/v6/latest/${currencyCode}`);
+        const data = await res.json();
+        if (data.rates) {
+          setExchangeRates(data.rates);
+        }
+      } catch (e) {
+        console.error("Failed to fetch exchange rates:", e);
+      }
+    };
+    fetchRates();
+  }, [currencyCode]);
 
   useEffect(() => {
     localStorage.setItem('kaching_travelMode', travelMode);
@@ -136,6 +161,19 @@ export const SettingsProvider = ({ children }) => {
     setQuickAmounts(newAmounts);
   };
 
+  const convertAmount = (amount, fromCode) => {
+    if (!fromCode || fromCode === currencyCode) return amount;
+    // We want to convert FROM fromCode TO currencyCode
+    // The rates we have are based on currencyCode (Base: currencyCode)
+    // So 1 currencyCode = exchangeRates[fromCode] fromCode
+    // amount in fromCode / exchangeRates[fromCode] = amount in currencyCode
+    const rate = exchangeRates[fromCode];
+    if (rate) {
+      return amount / rate;
+    }
+    return amount; // Fallback
+  };
+
   const value = {
     categories, addCategory, removeCategory, setCategories,
     quickAmounts, updateQuickAmount,
@@ -144,6 +182,8 @@ export const SettingsProvider = ({ children }) => {
     dailyBudget, setDailyBudget,
     biometricEnabled, setBiometricEnabled,
     currency, setCurrency,
+    currencyCode, setCurrencyCode,
+    exchangeRates, convertAmount,
     travelMode, setTravelMode,
     currentTrip, startTrip, endTrip,
     trips, deleteTrip

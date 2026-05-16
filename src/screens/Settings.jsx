@@ -23,6 +23,7 @@ const Settings = () => {
     dailyBudget, setDailyBudget,
     biometricEnabled, setBiometricEnabled,
     currency, setCurrency,
+    currencyCode, setCurrencyCode,
     travelMode, setTravelMode,
     currentTrip, startTrip, endTrip,
     trips, deleteTrip
@@ -279,8 +280,12 @@ const Settings = () => {
                 {filteredCurrencies.map((c) => (
                   <button
                     key={c.code}
-                    onClick={() => { setCurrency(c.symbol); setShowCurrencyModal(false); }}
-                    className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all ${currency === c.symbol ? 'bg-primary/10 text-primary' : 'active:bg-foreground/5'}`}
+                    onClick={() => {
+                      setCurrency(c.symbol);
+                      setCurrencyCode(c.code);
+                      setShowCurrencyModal(false);
+                    }}
+                    className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all ${currencyCode === c.code ? 'bg-primary/10 text-primary' : 'active:bg-foreground/5'}`}
                   >
                     <div className="flex items-center gap-4">
                       <span className="w-8 font-bold text-center text-lg">{c.symbol}</span>
