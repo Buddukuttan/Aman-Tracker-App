@@ -28,6 +28,7 @@ const Settings = () => {
     isBiometricEnrolled, setIsBiometricEnrolled,
     currency, setCurrency,
     currencyCode, setCurrencyCode,
+    convertAmount,
     travelMode, setTravelMode,
     currentTrip, startTrip, endTrip,
     trips, deleteTrip
@@ -89,14 +90,27 @@ const Settings = () => {
     try {
       let q = query(collection(db, 'expenses'), where('userId', '==', user.uid), orderBy('timestamp', 'desc'));
       const snapshot = await getDocs(q);
-      let totalSum = 0;
-      const breakdown = {};
-      const rawData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
+      const rawData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       const filteredData = tripId ? rawData.filter(d => d.tripId === tripId) : rawData;
 
+      if (filteredData.length === 0) {
+        alert("No expenses found for this report.");
+        return;
+      }
+
+      let totalSum = 0;
+      const breakdown = {};
+
       const processedExpenses = filteredData.map(d => {
-        const date = d.timestamp?.toDate() || (d.dateIST ? new Date(d.dateIST) : new Date());
+        let date;
+        try {
+          date = d.timestamp?.toDate ? d.timestamp.toDate() : (d.dateIST ? new Date(d.dateIST) : new Date());
+          if (isNaN(date.getTime())) date = new Date();
+        } catch (e) {
+          date = new Date();
+        }
+
         const originalAmt = Number(d.amount) || 0;
         const amt = convertAmount(originalAmt, d.currencyCode || 'INR');
         totalSum += amt;
@@ -328,7 +342,7 @@ const Settings = () => {
                 <div className="flex items-center gap-2">
                   <p className="text-[10px] text-foreground/40 uppercase font-bold tracking-widest">{travelMode ? currentTrip?.name : 'Inactive'}</p>
                   {travelMode && currentTrip && (
-                    <button onClick={(e) => { e.stopPropagation(); handleExport(currentTrip.id, currentTrip.name); }} className="text-primary active:scale-90 transition-transform">
+                    <button onClick={(e) => { e.stopPropagation(); prepareReportData(currentTrip.id); }} className="text-primary active:scale-90 transition-transform">
                       <Download className="w-3 h-3" />
                     </button>
                   )}
