@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from './context/AuthContext';
 import { SettingsProvider, useSettings } from './context/SettingsContext';
+import { verifyBiometrics, isWebAuthnSupported } from './lib/webauthn';
 import LogExpense from './screens/LogExpense';
 import Dashboard from './screens/Dashboard';
 import Settings from './screens/Settings';
@@ -10,30 +11,44 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 function App() {
   const { user, loading } = useAuth();
-  const { biometricEnabled } = useSettings();
+  const { biometricEnabled, isBiometricEnrolled } = useSettings();
   const [activeTab, setActiveTab] = useState('log');
   const [isLocked, setIsLocked] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [authError, setAuthError] = useState(null);
 
-  useEffect(() => { if (user && biometricEnabled) setIsLocked(true); }, [user, biometricEnabled]);
+  useEffect(() => {
+    if (user && biometricEnabled && isBiometricEnrolled) {
+      setIsLocked(true);
+    }
+  }, [user, biometricEnabled, isBiometricEnrolled]);
 
   const handleUnlock = async () => {
     setVerifying(true);
-
-    // Attempt local "FaceID" simulation using Web-first best practices
-    // We'll use a slightly longer delay to feel more authentic if biometrics aren't natively supported
-    // but we add a check to make it feel like it's actually doing something
-
-    await new Promise(resolve => setTimeout(resolve, 1200));
+    setAuthError(null);
 
     try {
-      const docEl = document.documentElement;
-      if (docEl.requestFullscreen) docEl.requestFullscreen();
-      else if (docEl.webkitRequestFullscreen) docEl.webkitRequestFullscreen();
-    } catch (e) {}
+      if (isWebAuthnSupported() && isBiometricEnrolled) {
+        await verifyBiometrics(user);
+      } else {
+        // Fallback simulation for unsupported devices or missing enrollment
+        await new Promise(resolve => setTimeout(resolve, 1200));
+      }
 
-    setIsLocked(false);
-    setVerifying(false);
+      // Successful verification
+      try {
+        const docEl = document.documentElement;
+        if (docEl.requestFullscreen) docEl.requestFullscreen();
+        else if (docEl.webkitRequestFullscreen) docEl.webkitRequestFullscreen();
+      } catch (e) {}
+
+      setIsLocked(false);
+    } catch (e) {
+      console.error("Auth failed:", e);
+      setAuthError(e.message || "Authentication failed");
+    } finally {
+      setVerifying(false);
+    }
   };
 
   if (loading) return <div className="h-[100dvh] flex items-center justify-center bg-background font-sans"><motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }} className="w-10 h-10 border-4 border-primary/10 border-t-primary rounded-full" /></div>;
@@ -45,8 +60,20 @@ function App() {
          {verifying && <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 2, ease: "linear" }} className="absolute inset-[-10px] border-2 border-primary/20 border-t-primary rounded-[50px]" />}
          <Lock className="w-10 h-10" />
       </div>
-      <div className="space-y-3"><h2 className="text-3xl font-bold font-display tracking-tight text-foreground">Security Vault</h2><p className="text-foreground/40 text-sm font-medium">Verification required.</p></div>
-      <button onClick={handleUnlock} disabled={verifying} className="w-full max-w-xs py-6 bg-primary text-primary-foreground rounded-[32px] font-bold flex items-center justify-center gap-3 shadow-2xl shadow-primary/40 active:scale-95 transition-transform disabled:opacity-50"><ShieldCheck className="w-6 h-6" /><span>{verifying ? 'Verifying...' : 'FaceID / TouchID'}</span></button>
+      <div className="space-y-3">
+        <h2 className="text-3xl font-bold font-display tracking-tight text-foreground">Security Vault</h2>
+        <p className="text-foreground/40 text-sm font-medium">
+          {authError ? <span className="text-red-500">{authError}</span> : "Verification required."}
+        </p>
+      </div>
+      <button
+        onClick={handleUnlock}
+        disabled={verifying}
+        className="w-full max-w-xs py-6 bg-primary text-primary-foreground rounded-[32px] font-bold flex items-center justify-center gap-3 shadow-2xl shadow-primary/40 active:scale-95 transition-transform disabled:opacity-50"
+      >
+        <ShieldCheck className="w-6 h-6" />
+        <span>{verifying ? 'Verifying...' : 'Authenticate with Biometrics'}</span>
+      </button>
     </div>
   );
 

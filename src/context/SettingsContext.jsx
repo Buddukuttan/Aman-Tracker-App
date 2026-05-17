@@ -1,4 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useAuth } from './AuthContext';
+import { db } from '../lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
 const SettingsContext = createContext();
 
@@ -54,10 +57,23 @@ export const SettingsProvider = ({ children }) => {
     return saved ? JSON.parse(saved) : null;
   });
 
+  const { user } = useAuth();
+  const [isBiometricEnrolled, setIsBiometricEnrolled] = useState(false);
+
   const [trips, setTrips] = useState(() => {
     const saved = localStorage.getItem('kaching_trips');
     return saved ? JSON.parse(saved) : [];
   });
+
+  useEffect(() => {
+    const checkBiometrics = async () => {
+      if (user) {
+        const credentialDoc = await getDoc(doc(db, "biometric_credentials", user.uid));
+        setIsBiometricEnrolled(credentialDoc.exists());
+      }
+    };
+    checkBiometrics();
+  }, [user]);
 
   useEffect(() => {
     localStorage.setItem('kaching_categories', JSON.stringify(categories));
@@ -181,6 +197,7 @@ export const SettingsProvider = ({ children }) => {
     budgetEnabled, setBudgetEnabled,
     dailyBudget, setDailyBudget,
     biometricEnabled, setBiometricEnabled,
+    isBiometricEnrolled, setIsBiometricEnrolled,
     currency, setCurrency,
     currencyCode, setCurrencyCode,
     exchangeRates, convertAmount,

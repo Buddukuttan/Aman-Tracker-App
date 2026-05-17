@@ -7,6 +7,7 @@ import { formatIST } from '../lib/utils';
 import * as XLSX from 'xlsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import { currencies } from '../lib/currencies';
+import { registerBiometrics, unregisterBiometrics, isWebAuthnSupported } from '../lib/webauthn';
 import {
   LogOut, Plus, Trash2, Download, BookOpen, Search,
   ChevronRight, X, Smartphone, Fingerprint, Edit2, Check,
@@ -22,6 +23,7 @@ const Settings = () => {
     budgetEnabled, setBudgetEnabled,
     dailyBudget, setDailyBudget,
     biometricEnabled, setBiometricEnabled,
+    isBiometricEnrolled, setIsBiometricEnrolled,
     currency, setCurrency,
     currencyCode, setCurrencyCode,
     travelMode, setTravelMode,
@@ -158,12 +160,72 @@ const Settings = () => {
       {/* Security & Currency */}
       <section className="space-y-4">
         <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] ml-2 text-foreground/40 flex items-center gap-2"><ShieldCheck className="w-3.5 h-3.5" /> Security & Locale</h2>
-        <div className="grid grid-cols-2 gap-4">
-          <button onClick={() => setBiometricEnabled(!biometricEnabled)} className="bg-foreground/5 p-6 rounded-[32px] border border-foreground/5 flex flex-col items-center gap-3 active:scale-95 transition-all">
-            <div className={`p-3 rounded-2xl ${biometricEnabled ? 'bg-primary text-primary-foreground' : 'bg-foreground/10 text-foreground/40'}`}><ShieldCheck className="w-6 h-6" /></div>
-            <span className="text-[10px] font-bold uppercase tracking-widest">{biometricEnabled ? 'FaceID ON' : 'Security OFF'}</span>
-          </button>
-          <button onClick={() => setShowCurrencyModal(true)} className="bg-foreground/5 p-6 rounded-[32px] border border-foreground/5 flex flex-col items-center gap-3 active:scale-95 transition-all">
+
+        <div className="bg-foreground/5 rounded-[32px] p-6 border border-foreground/5 space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className={`p-3 rounded-2xl ${biometricEnabled ? 'bg-primary text-primary-foreground' : 'bg-foreground/10 text-foreground/40'}`}><ShieldCheck className="w-6 h-6" /></div>
+              <div>
+                <p className="font-bold">Biometric Lock</p>
+                <p className="text-[10px] text-foreground/40 uppercase font-bold tracking-widest">{biometricEnabled ? 'Active' : 'Disabled'}</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setBiometricEnabled(!biometricEnabled)}
+              className={`w-14 h-8 rounded-full relative transition-colors ${biometricEnabled ? 'bg-primary' : 'bg-foreground/20'}`}
+            >
+              <motion.div animate={{ x: biometricEnabled ? 24 : 4 }} className="absolute top-1 w-6 h-6 bg-white rounded-full shadow-sm" />
+            </button>
+          </div>
+
+          {biometricEnabled && (
+            <div className="pt-4 border-t border-foreground/5">
+              {!isWebAuthnSupported() ? (
+                <div className="bg-red-500/10 text-red-500 p-4 rounded-2xl flex items-center gap-3">
+                  <X className="w-5 h-5" />
+                  <span className="text-xs font-bold uppercase tracking-widest">WebAuthn Not Supported on this Browser</span>
+                </div>
+              ) : !isBiometricEnrolled ? (
+                <button
+                  onClick={async () => {
+                    try {
+                      await registerBiometrics(user);
+                      setIsBiometricEnrolled(true);
+                      alert("Biometrics enrolled successfully!");
+                    } catch (e) {
+                      alert("Enrollment failed: " + e.message);
+                    }
+                  }}
+                  className="w-full py-4 bg-primary/10 text-primary rounded-2xl font-bold text-xs uppercase tracking-widest active:bg-primary/20 transition-colors flex items-center justify-center gap-2"
+                >
+                  <Fingerprint className="w-4 h-4" />
+                  Register FaceID / TouchID
+                </button>
+              ) : (
+                <div className="flex flex-col gap-3">
+                   <div className="bg-emerald-500/10 text-emerald-500 p-4 rounded-2xl flex items-center gap-3">
+                      <Check className="w-5 h-5" />
+                      <span className="text-xs font-bold uppercase tracking-widest">Device Enrolled</span>
+                   </div>
+                   <button
+                    onClick={async () => {
+                      if (confirm("Remove biometric enrollment from this device?")) {
+                        await unregisterBiometrics(user);
+                        setIsBiometricEnrolled(false);
+                      }
+                    }}
+                    className="text-[10px] font-bold text-red-500/40 uppercase tracking-widest text-center"
+                   >
+                     Unregister Device
+                   </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 gap-4">
+          <button onClick={() => setShowCurrencyModal(true)} className="bg-foreground/5 p-6 rounded-[32px] border border-foreground/5 flex items-center justify-between active:scale-[0.98] transition-all">
              <div className="p-3 rounded-2xl bg-foreground/10 text-primary"><Globe className="w-6 h-6" /></div>
              <div className="flex items-center gap-2">
                 <span className="text-[10px] font-bold uppercase tracking-widest text-foreground/40">Unit</span>

@@ -3,6 +3,7 @@ import { db } from '../lib/firebase';
 import { collection, query, where, orderBy, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
+import { registerBiometrics, isWebAuthnSupported } from '../lib/webauthn';
 import { getISTBoundaries, formatIST, getDaysRemainingInMonth } from '../lib/utils';
 import SpendingChart from '../components/SpendingChart';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -12,7 +13,11 @@ import {
 
 const Dashboard = () => {
   const { user } = useAuth();
-  const { budgetEnabled, dailyBudget, currency, currencyCode, convertAmount, travelMode, currentTrip, endTrip } = useSettings();
+  const {
+    budgetEnabled, dailyBudget, currency, currencyCode,
+    convertAmount, travelMode, currentTrip, endTrip,
+    isBiometricEnrolled, setIsBiometricEnrolled, setBiometricEnabled
+  } = useSettings();
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedCategory, setExpandedCategory] = useState(null);
@@ -110,6 +115,39 @@ const Dashboard = () => {
           <Trophy className="w-6 h-6" />
         </motion.button>
       </header>
+
+      {/* Biometric Enrollment Prompt */}
+      {!isBiometricEnrolled && isWebAuthnSupported() && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-primary/5 p-6 rounded-[32px] border border-primary/20 flex flex-col gap-4"
+        >
+          <div className="flex items-center gap-4">
+            <div className="p-3 rounded-2xl bg-primary/10 text-primary">
+              <ShieldCheck className="w-6 h-6" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-bold text-sm">Secure Your Wealth</h3>
+              <p className="text-[10px] text-foreground/40 font-medium leading-tight">Enable FaceID or TouchID for instant, secure access to your portfolio.</p>
+            </div>
+          </div>
+          <button
+            onClick={async () => {
+              try {
+                await registerBiometrics(user);
+                setIsBiometricEnrolled(true);
+                setBiometricEnabled(true);
+              } catch (e) {
+                console.error("Dashboard enrollment failed:", e);
+              }
+            }}
+            className="w-full py-3 bg-primary text-primary-foreground rounded-2xl font-bold text-[10px] uppercase tracking-widest shadow-lg shadow-primary/20 active:scale-[0.98] transition-transform"
+          >
+            Register Biometrics
+          </button>
+        </motion.div>
+      )}
 
       {/* Travel Mode Dashboard */}
       {travelMode && currentTrip && (
