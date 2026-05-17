@@ -42,6 +42,7 @@ const Settings = () => {
   const [tripName, setTripName] = useState('');
   const [tripBudget, setTripBudget] = useState('');
   const [showTravelHistory, setShowTravelHistory] = useState(false);
+  const [registeringBiometrics, setRegisteringBiometrics] = useState(false);
 
   const luxuryThemes = [
     { id: 'qatar', name: 'Qatar Airways', colors: ['#4b0d1a', '#c4a46d'] },
@@ -183,23 +184,26 @@ const Settings = () => {
               {!isWebAuthnSupported() ? (
                 <div className="bg-red-500/10 text-red-500 p-4 rounded-2xl flex items-center gap-3">
                   <X className="w-5 h-5" />
-                  <span className="text-xs font-bold uppercase tracking-widest">WebAuthn Not Supported on this Browser</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest">Unsupported (Use Safari/HTTPS)</span>
                 </div>
               ) : !isBiometricEnrolled ? (
                 <button
+                  disabled={registeringBiometrics}
                   onClick={async () => {
+                    setRegisteringBiometrics(true);
                     try {
                       await registerBiometrics(user);
                       setIsBiometricEnrolled(true);
-                      alert("Biometrics enrolled successfully!");
                     } catch (e) {
-                      alert("Enrollment failed: " + e.message);
+                      alert("Enrollment failed: " + (e.message || "Unknown error"));
+                    } finally {
+                      setRegisteringBiometrics(false);
                     }
                   }}
-                  className="w-full py-4 bg-primary/10 text-primary rounded-2xl font-bold text-xs uppercase tracking-widest active:bg-primary/20 transition-colors flex items-center justify-center gap-2"
+                  className="w-full py-4 bg-primary/10 text-primary rounded-2xl font-bold text-xs uppercase tracking-widest active:bg-primary/20 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   <Fingerprint className="w-4 h-4" />
-                  Register FaceID / TouchID
+                  {registeringBiometrics ? 'Opening Scanner...' : 'Register FaceID / TouchID'}
                 </button>
               ) : (
                 <div className="flex flex-col gap-3">

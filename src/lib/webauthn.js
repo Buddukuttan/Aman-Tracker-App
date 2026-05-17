@@ -1,5 +1,5 @@
 import { db } from './firebase';
-import { collection, doc, setDoc, getDoc, query, where, getDocs, deleteDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, deleteDoc } from 'firebase/firestore';
 
 /**
  * ⚠️ SECURITY LIMITATION:
@@ -8,14 +8,22 @@ import { collection, doc, setDoc, getDoc, query, where, getDocs, deleteDoc } fro
  * the challenge is generated and stored in Firestore directly from the client.
  */
 
-// Helper to convert ArrayBuffer to Base64
-const bufferToBase64 = (buffer) => {
-  return btoa(String.fromCharCode(...new Uint8Array(buffer)));
+// Helper to convert ArrayBuffer to Base64 (URL-safe)
+const bufferToBase64URL = (buffer) => {
+  const bytes = new Uint8Array(buffer);
+  let str = '';
+  for (const charCode of bytes) {
+    str += String.fromCharCode(charCode);
+  }
+  return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 };
 
-// Helper to convert Base64 to ArrayBuffer
-const base64ToBuffer = (base64) => {
-  const binaryString = atob(base64);
+// Helper to convert Base64 (URL-safe) to ArrayBuffer
+const base64URLToBuffer = (base64url) => {
+  const base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+  const padLen = (4 - (base64.length % 4)) % 4;
+  const paddedBase64 = base64 + '='.repeat(padLen);
+  const binaryString = atob(paddedBase64);
   const bytes = new Uint8Array(binaryString.length);
   for (let i = 0; i < binaryString.length; i++) {
     bytes[i] = binaryString.charCodeAt(i);
@@ -24,7 +32,8 @@ const base64ToBuffer = (base64) => {
 };
 
 export const isWebAuthnSupported = () => {
-  return !!(window.PublicKeyCredential &&
+  return !!(window.isSecureContext &&
+            window.PublicKeyCredential &&
             window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable);
 };
 
@@ -32,11 +41,11 @@ export const registerBiometrics = async (user) => {
   if (!user) throw new Error("User not authenticated");
 
   const available = await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
-  if (!available) throw new Error("Biometric authentication not available on this device");
+  if (!available) throw new Error("Biometric authentication not available on this device. Use Safari on iPhone.");
 
   const challengeBytes = new Uint8Array(32);
   window.crypto.getRandomValues(challengeBytes);
-  const challengeBase64 = bufferToBase64(challengeBytes);
+  const challengeBase64 = bufferToBase64URL(challengeBytes);
 
   // Store challenge in Firestore for "verification"
   await setDoc(doc(db, "webauthn_challenges", user.uid), {
@@ -47,18 +56,22 @@ export const registerBiometrics = async (user) => {
   const publicKeyCredentialCreationOptions = {
     challenge: challengeBytes,
     rp: {
-      name: "Ka-Ching! Expense Tracker",
-      id: window.location.hostname,
+      name: "Ka-Ching!",
+      // id: window.location.hostname, // Omitted to let browser handle origin correctly
     },
     user: {
-      id: base64ToBuffer(btoa(user.uid)), // Unique user ID in bytes
+      id: new TextEncoder().encode(user.uid),
       name: user.email || user.uid,
       displayName: user.displayName || user.email || "User",
     },
-    pubKeyCredParams: [{ alg: -7, type: "public-key" }, { alg: -257, type: "public-key" }],
+    pubKeyCredParams: [
+      { alg: -7, type: "public-key" },   // ES256
+      { alg: -257, type: "public-key" }  // RS256
+    ],
     authenticatorSelection: {
       authenticatorAttachment: "platform",
       userVerification: "required",
+      residentKey: "preferred",
     },
     timeout: 60000,
     attestation: "none",
@@ -68,12 +81,14 @@ export const registerBiometrics = async (user) => {
     publicKey: publicKeyCredentialCreationOptions,
   });
 
+  if (!credential) throw new Error("Failed to create credential");
+
   // Store credential ID and public key in Firestore
   const credentialData = {
     id: credential.id,
-    rawId: bufferToBase64(credential.rawId),
+    rawId: bufferToBase64URL(credential.rawId),
     type: credential.type,
-    publicKey: bufferToBase64(credential.response.getPublicKey()),
+    publicKey: bufferToBase64URL(credential.response.getPublicKey()),
     algorithm: credential.response.getPublicKeyAlgorithm(),
     userId: user.uid,
     createdAt: Date.now(),
@@ -96,7 +111,7 @@ export const verifyBiometrics = async (user) => {
 
   const challengeBytes = new Uint8Array(32);
   window.crypto.getRandomValues(challengeBytes);
-  const challengeBase64 = bufferToBase64(challengeBytes);
+  const challengeBase64 = bufferToBase64URL(challengeBytes);
 
   // Store challenge in Firestore for "verification"
   await setDoc(doc(db, "webauthn_challenges", user.uid), {
@@ -107,7 +122,7 @@ export const verifyBiometrics = async (user) => {
   const publicKeyCredentialRequestOptions = {
     challenge: challengeBytes,
     allowCredentials: [{
-      id: base64ToBuffer(storedCredential.rawId),
+      id: base64URLToBuffer(storedCredential.rawId),
       type: 'public-key',
     }],
     userVerification: "required",
@@ -118,14 +133,24 @@ export const verifyBiometrics = async (user) => {
     publicKey: publicKeyCredentialRequestOptions,
   });
 
-  // ⚠️ In a real app, you would verify the signature here using the stored public key.
-  // Since we are client-side only, successful retrieval of the assertion from the platform
-  // authenticator (FaceID/TouchID) confirms the user is verified.
+  if (!assertion) throw new Error("Authentication failed");
+
+  // Basic challenge verification (client-side)
+  const clientDataJSON = JSON.parse(new TextDecoder().decode(assertion.response.clientDataJSON));
+  const returnedChallenge = clientDataJSON.challenge.replace(/=/g, '');
+  const originalChallenge = challengeBase64.replace(/=/g, '');
+
+  if (returnedChallenge !== originalChallenge) {
+    throw new Error("Security challenge mismatch");
+  }
 
   return true;
 };
 
 export const unregisterBiometrics = async (user) => {
   if (!user) return;
-  await deleteDoc(doc(db, "biometric_credentials", user.uid));
+  await Promise.all([
+    deleteDoc(doc(db, "biometric_credentials", user.uid)),
+    deleteDoc(doc(db, "webauthn_challenges", user.uid))
+  ]);
 };
