@@ -11,9 +11,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { currencies } from '../lib/currencies';
 import { registerBiometrics, unregisterBiometrics, isWebAuthnSupported } from '../lib/webauthn';
 import {
-  LogOut, Plus, Trash2, Download, BookOpen, Search,
+  LogOut, Plus, Trash2, Download, Search,
   ChevronRight, X, Smartphone, Fingerprint, Edit2, Check,
-  Palette, Target, Wallet, Globe, ShieldCheck, Coins, HelpCircle, Briefcase, History
+  Palette, Target, Wallet, Globe, ShieldCheck, Coins, HelpCircle, Briefcase, History,
+  PieChart, TrendingUp, Trophy, BookOpen
 } from 'lucide-react';
 
 const Settings = () => {
@@ -533,107 +534,199 @@ const Settings = () => {
       </AnimatePresence>
 
       {showReportPreview && (
-        <div className="fixed inset-0 z-[120] bg-black/90 backdrop-blur-2xl flex flex-col p-4 overflow-y-auto no-scrollbar">
-          <div className="flex justify-between items-center mb-6 pt-safe">
-             <button onClick={() => setShowReportPreview(false)} className="p-3 bg-foreground/10 rounded-full text-foreground"><X className="w-6 h-6" /></button>
-             <div className="flex gap-2">
-                <button onClick={exportToExcel} className="p-3 bg-primary/10 rounded-full text-primary flex items-center gap-2 font-bold text-xs"><Download className="w-4 h-4" /> EXCEL</button>
-                <button onClick={exportToPDF} className="p-3 bg-primary rounded-full text-primary-foreground flex items-center gap-2 font-bold text-xs"><Download className="w-4 h-4" /> PDF</button>
+        <div className="fixed inset-0 z-[120] bg-black/98 backdrop-blur-3xl flex flex-col p-4 overflow-y-auto no-scrollbar">
+          <div className="flex justify-between items-center mb-8 pt-safe px-4">
+             <button onClick={() => setShowReportPreview(false)} className="p-4 bg-foreground/10 rounded-full text-foreground/80 active:scale-90 transition-transform backdrop-blur-md"><X className="w-6 h-6" /></button>
+             <div className="flex gap-4">
+                <button onClick={exportToExcel} className="px-6 py-4 bg-foreground/5 rounded-2xl text-foreground/60 flex items-center gap-2 font-bold text-[10px] uppercase tracking-[0.2em] active:scale-95 transition-all border border-white/5">CSV/XLSX</button>
+                <button onClick={exportToPDF} className="px-8 py-4 bg-primary rounded-2xl text-primary-foreground flex items-center gap-2 font-bold text-[10px] uppercase tracking-[0.2em] shadow-2xl shadow-primary/30 active:scale-95 transition-all">Export PDF</button>
              </div>
           </div>
 
-          <div id="report-content" className="bg-background rounded-[48px] p-8 space-y-10 border border-foreground/5 shadow-2xl overflow-hidden relative">
-            <div className="absolute -right-20 -top-20 w-64 h-64 bg-primary/10 rounded-full blur-3xl" />
-            <div className="absolute -left-20 bottom-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl" />
+          <div id="report-content" className="bg-background rounded-[64px] p-12 space-y-16 border border-foreground/5 shadow-2xl overflow-hidden relative mx-auto w-full max-w-2xl min-h-[1000px]">
+            {/* Editorial Background Elements */}
+            <div className="absolute right-0 top-0 w-1/2 h-full bg-[linear-gradient(to_bottom,var(--primary)_0%,transparent_100%)] opacity-[0.02]" />
+            <div className="absolute -right-40 -top-40 w-[500px] h-[500px] bg-primary/10 rounded-full blur-[120px]" />
+            <div className="absolute -left-40 bottom-0 w-[400px] h-[400px] bg-primary/5 rounded-full blur-[100px]" />
 
-            <div className="relative space-y-4">
-               <p className="text-primary font-bold tracking-[0.4em] text-[10px] uppercase">Wealth Report • {formatIST(new Date(), 'MMM yyyy')}</p>
-               <h2 className="text-5xl font-bold font-display tracking-tighter leading-none text-foreground">
-                 {reportData.tripTitle ? reportData.tripTitle : 'Total Portfolio'}
-               </h2>
-               <div className="h-1 w-20 bg-primary rounded-full" />
+            {/* Editorial Masthead */}
+            <div className="relative space-y-8 divide-y divide-foreground/10">
+               <div className="flex justify-between items-end pb-8">
+                  <div className="space-y-4">
+                     <div className="flex items-center gap-4">
+                        <div className="px-3 py-1 bg-primary/10 text-primary text-[8px] font-black uppercase tracking-[0.4em] rounded-full border border-primary/20">Private Report</div>
+                        <p className="text-foreground/40 font-bold tracking-[0.3em] text-[8px] uppercase">{formatIST(new Date(), 'EEEE, MMMM do, yyyy')}</p>
+                     </div>
+                     <h2 className="text-7xl font-bold font-display tracking-tighter leading-[0.85] text-foreground whitespace-pre-line">
+                       {reportData.tripTitle ? reportData.tripTitle : 'Wealth\nStatement'}
+                     </h2>
+                  </div>
+                  <div className="text-right hidden sm:block">
+                     <p className="text-[10px] font-black text-foreground/10 uppercase tracking-[0.5em] leading-none mb-2">Authenticated By</p>
+                     <p className="font-display font-bold text-2xl tracking-tighter text-foreground/20">Ka-Ching!</p>
+                  </div>
+               </div>
+               <div className="pt-8 grid grid-cols-3 gap-12">
+                  <div className="space-y-2">
+                     <p className="text-foreground/30 font-black uppercase tracking-[0.2em] text-[8px]">Current Status</p>
+                     <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
+                        <p className="text-[10px] font-bold text-foreground/80 uppercase tracking-widest">Active Portfolio</p>
+                     </div>
+                  </div>
+                  <div className="space-y-2 border-l border-foreground/5 pl-8">
+                     <p className="text-foreground/30 font-black uppercase tracking-[0.2em] text-[8px]">Period Covered</p>
+                     <p className="text-[10px] font-bold text-foreground/80 uppercase tracking-widest">{formatIST(new Date(), 'MMM yyyy')}</p>
+                  </div>
+                  <div className="space-y-2 border-l border-foreground/5 pl-8">
+                     <p className="text-foreground/30 font-black uppercase tracking-[0.2em] text-[8px]">Document Class</p>
+                     <p className="text-[10px] font-bold text-foreground/80 uppercase tracking-widest">Master Extract</p>
+                  </div>
+               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-8 relative">
-               <div className="space-y-1">
-                 <p className="text-foreground/30 font-bold uppercase tracking-widest text-[10px]">Net Outflow</p>
-                 <div className="text-6xl font-bold tracking-tighter text-foreground flex items-baseline">
-                   <span className="text-2xl mr-1 opacity-40">{currency}</span>
-                   {reportData.total.toLocaleString()}
-                 </div>
+            {/* Principal Liquidity Metric */}
+            <div className="relative group">
+               <div className="absolute inset-0 bg-primary/5 rounded-[48px] -m-4 blur-xl group-hover:bg-primary/10 transition-colors" />
+               <div className="relative bg-foreground/3 p-12 rounded-[48px] border border-foreground/5 space-y-4">
+                  <p className="text-foreground/30 font-black uppercase tracking-[0.4em] text-[10px]">Net Capital Outflow</p>
+                  <div className="flex items-baseline gap-4">
+                    <span className="text-4xl font-light text-primary/40">{currency}</span>
+                    <h3 className="text-8xl font-bold tracking-tighter text-foreground leading-none">
+                      {reportData.total.toLocaleString()}
+                    </h3>
+                  </div>
+               </div>
+            </div>
+
+            {/* Analytical Insights Grid */}
+            <div className="grid grid-cols-2 gap-8 relative">
+               {/* Allocation Breakdown */}
+               <div className="space-y-8 bg-foreground/2 p-8 rounded-[40px] border border-foreground/5">
+                  <div className="flex justify-between items-center">
+                     <p className="text-foreground/40 font-black uppercase tracking-[0.3em] text-[9px]">Class Allocation</p>
+                     <PieChart className="w-4 h-4 text-primary/40" />
+                  </div>
+                  <div className="space-y-6">
+                    {Object.entries(reportData.breakdown).sort((a,b) => b[1] - a[1]).slice(0, 4).map(([cat, amt]) => (
+                      <div key={cat} className="space-y-3">
+                         <div className="flex justify-between items-end">
+                            <span className="text-[10px] font-bold text-foreground/70 uppercase tracking-widest">{cat}</span>
+                            <span className="text-[10px] font-black text-foreground">{((amt / reportData.total) * 100).toFixed(0)}%</span>
+                         </div>
+                         <div className="h-[2px] w-full bg-foreground/5 rounded-full overflow-hidden">
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: `${(amt / reportData.total) * 100}%` }}
+                              className="h-full bg-primary"
+                            />
+                         </div>
+                      </div>
+                    ))}
+                  </div>
                </div>
 
-               <div className="space-y-4">
-                 <p className="text-foreground/30 font-bold uppercase tracking-widest text-[10px]">Spending Trend</p>
-                 <div className="flex items-end justify-between h-20 gap-2 px-2 pt-4">
+               {/* Velocity Trend */}
+               <div className="space-y-8 bg-foreground/2 p-8 rounded-[40px] border border-foreground/5">
+                  <div className="flex justify-between items-center">
+                     <p className="text-foreground/40 font-black uppercase tracking-[0.3em] text-[9px]">Outflow Velocity</p>
+                     <TrendingUp className="w-4 h-4 text-primary/40" />
+                  </div>
+                  <div className="flex items-end justify-between h-32 gap-2">
                     {(() => {
                       const trend = {};
-                      reportData.expenses.slice(0, 30).forEach(exp => {
+                      reportData.expenses.slice(0, 50).forEach(exp => {
                         const day = formatIST(exp.resolvedDate, 'EEE');
                         trend[day] = (trend[day] || 0) + exp.resolvedAmount;
                       });
                       const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
                       const maxTrend = Math.max(...Object.values(trend), 1);
                       return days.map(day => (
-                        <div key={day} className="flex-1 flex flex-col items-center gap-2">
-                           <div className="w-full bg-primary/10 rounded-full h-12 flex items-end overflow-hidden">
-                              <div className="w-full bg-primary" style={{ height: `${((trend[day] || 0) / maxTrend) * 100}%` }} />
+                        <div key={day} className="flex-1 flex flex-col items-center gap-3">
+                           <div className="w-full bg-foreground/10 rounded-full h-full flex items-end overflow-hidden relative">
+                              <motion.div
+                                initial={{ height: 0 }}
+                                animate={{ height: `${((trend[day] || 0) / maxTrend) * 100}%` }}
+                                className="w-full bg-primary/60 rounded-full"
+                              />
                            </div>
-                           <span className="text-[8px] font-black text-foreground/20 uppercase">{day}</span>
+                           <span className="text-[6px] font-black text-foreground/20 uppercase">{day}</span>
                         </div>
                       ));
                     })()}
-                 </div>
-               </div>
-
-               <div className="space-y-4">
-                 <p className="text-foreground/30 font-bold uppercase tracking-widest text-[10px]">Allocation Breakdown</p>
-                 <div className="space-y-3">
-                   {Object.entries(reportData.breakdown).sort((a,b) => b[1] - a[1]).map(([cat, amt]) => (
-                     <div key={cat} className="flex flex-col gap-2">
-                        <div className="flex justify-between items-center text-sm font-bold">
-                           <span className="text-foreground/60">{cat}</span>
-                           <span className="text-primary">{currency}{amt.toLocaleString()}</span>
-                        </div>
-                        <div className="h-1.5 w-full bg-foreground/5 rounded-full overflow-hidden">
-                           <div className="h-full bg-primary" style={{ width: `${(amt / reportData.total) * 100}%` }} />
-                        </div>
-                     </div>
-                   ))}
-                 </div>
+                  </div>
                </div>
             </div>
 
-            <div className="space-y-4 relative">
-               <p className="text-foreground/30 font-bold uppercase tracking-widest text-[10px]">Recent Activity</p>
-               <div className="space-y-4">
-                 {reportData.expenses.slice(0, 10).map((exp, i) => (
-                   <div key={i} className="flex justify-between items-center pb-4 border-b border-foreground/5 last:border-0">
-                      <div className="space-y-0.5">
-                         <p className="font-bold text-sm text-foreground/80">{exp.note || 'General'}</p>
-                         <p className="text-[10px] font-bold text-foreground/20 uppercase tracking-widest">{formatIST(exp.resolvedDate, 'MMM d')}</p>
+            {/* Strategic Insight Block */}
+            <div className="bg-primary/5 p-10 rounded-[48px] border border-primary/10 relative overflow-hidden">
+               <div className="absolute -right-10 -bottom-10 opacity-5"><Trophy className="w-40 h-40 text-primary" /></div>
+               <div className="relative space-y-4">
+                  <div className="flex items-center gap-3">
+                     <BookOpen className="w-4 h-4 text-primary" />
+                     <p className="text-primary font-black uppercase tracking-[0.3em] text-[9px]">Executive Summary</p>
+                  </div>
+                  <p className="text-lg font-medium text-foreground/80 leading-relaxed max-w-xl">
+                    {(() => {
+                      const topCat = Object.entries(reportData.breakdown).sort((a,b) => b[1] - a[1])[0];
+                      if (!topCat) return "Your portfolio is currently awaiting deployment.";
+                      return `Primary capital outflow is concentrated within ${topCat[0].toUpperCase()}. This sector represents ${((topCat[1]/reportData.total)*100).toFixed(0)}% of your total expenditure. Maintaining current velocity ensures portfolio stability through the upcoming period.`;
+                    })()}
+                  </p>
+               </div>
+            </div>
+
+            {/* Ledger Transcript */}
+            <div className="space-y-8 relative">
+               <div className="flex justify-between items-center">
+                  <p className="text-foreground/40 font-black uppercase tracking-[0.3em] text-[9px]">Ledger Extract</p>
+                  <p className="text-[8px] font-bold text-foreground/20 uppercase tracking-[0.2em]">{reportData.expenses.length} Records Total</p>
+               </div>
+               <div className="grid grid-cols-1 gap-2">
+                 <div className="grid grid-cols-4 px-4 pb-4 border-b border-foreground/10 text-[8px] font-black text-foreground/30 uppercase tracking-[0.2em]">
+                    <span className="col-span-2">Note / Class</span>
+                    <span className="text-center">Date</span>
+                    <span className="text-right">Magnitude</span>
+                 </div>
+                 {reportData.expenses.slice(0, 15).map((exp, i) => (
+                   <div key={i} className="grid grid-cols-4 items-center p-4 bg-foreground/2 rounded-2xl border border-foreground/5 transition-colors hover:bg-foreground/5">
+                      <div className="col-span-2 space-y-1">
+                         <p className="font-bold text-xs text-foreground truncate">{exp.note || 'General Entry'}</p>
+                         <p className="text-[7px] font-black text-primary/60 uppercase tracking-widest">{exp.category}</p>
                       </div>
+                      <p className="text-center text-[9px] font-bold text-foreground/40 uppercase tracking-tighter">{formatIST(exp.resolvedDate, 'MMM d')}</p>
                       <div className="text-right">
-                         <p className="font-bold text-sm text-foreground/60">{currency}{exp.resolvedAmount.toLocaleString()}</p>
-                         <p className="text-[8px] font-black text-primary/40 uppercase tracking-tighter">{exp.category}</p>
+                         <p className="font-bold text-xs text-foreground">{currency}{exp.resolvedAmount.toLocaleString()}</p>
                       </div>
                    </div>
                  ))}
-                 {reportData.expenses.length > 10 && (
-                   <p className="text-center text-[10px] font-bold text-foreground/20 uppercase tracking-widest pt-2">+ {reportData.expenses.length - 10} more transactions</p>
+                 {reportData.expenses.length > 15 && (
+                   <div className="pt-6 text-center">
+                      <p className="text-[9px] font-bold text-foreground/20 uppercase tracking-[0.4em] italic">+ Archive contains {reportData.expenses.length - 15} additional entries</p>
+                   </div>
                  )}
                </div>
             </div>
 
-            <div className="pt-10 border-t border-foreground/5 flex justify-between items-center opacity-30">
-               <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-primary-foreground font-black text-xs">K</div>
-                  <span className="font-black tracking-tighter text-sm italic">Ka-Ching!</span>
+            {/* Footer / Authority */}
+            <div className="pt-16 border-t border-foreground/10 flex justify-between items-end opacity-40">
+               <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                     <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-primary-foreground font-black text-lg">K</div>
+                     <div>
+                        <p className="font-black tracking-tighter text-2xl italic text-foreground">Ka-Ching!</p>
+                        <p className="text-[7px] font-black uppercase tracking-[0.4em] text-primary">Wealth Management Suite</p>
+                     </div>
+                  </div>
                </div>
-               <p className="text-[8px] font-bold uppercase tracking-widest">Confidential Wealth Summary</p>
+               <div className="text-right space-y-2">
+                  <p className="text-[8px] font-black text-foreground uppercase tracking-[0.3em]">Confidential Wealth Summary</p>
+                  <p className="text-[7px] font-medium text-foreground/40">Statement Reference ID: {Date.now().toString(16).toUpperCase()}</p>
+                  <p className="text-[6px] font-medium text-foreground/20">© {new Date().getFullYear()} Sikka Wealth Management. All rights reserved.</p>
+               </div>
             </div>
           </div>
-          <div className="h-20" />
+          <div className="h-32" />
         </div>
       )}
 

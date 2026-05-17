@@ -8,7 +8,7 @@ import { getISTBoundaries, formatIST, getDaysRemainingInMonth } from '../lib/uti
 import SpendingChart from '../components/SpendingChart';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  PieChart, Trash2, Trophy, ArrowUpRight, ArrowDownRight, X, ChevronRight, Info, TrendingUp, History
+  PieChart, Trash2, Trophy, ArrowUpRight, ArrowDownRight, X, ChevronRight, Info, TrendingUp, History, ShieldCheck
 } from 'lucide-react';
 
 const Dashboard = () => {
