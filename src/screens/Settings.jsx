@@ -5,6 +5,8 @@ import { db } from '../lib/firebase';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { formatIST } from '../lib/utils';
 import * as XLSX from 'xlsx';
+import { jsPDF } from 'jspdf';
+import html2canvas from 'html2canvas';
 import { motion, AnimatePresence } from 'framer-motion';
 import { currencies } from '../lib/currencies';
 import { registerBiometrics, unregisterBiometrics, isWebAuthnSupported } from '../lib/webauthn';
@@ -43,6 +45,8 @@ const Settings = () => {
   const [tripBudget, setTripBudget] = useState('');
   const [showTravelHistory, setShowTravelHistory] = useState(false);
   const [registeringBiometrics, setRegisteringBiometrics] = useState(false);
+  const [showReportPreview, setShowReportPreview] = useState(false);
+  const [reportData, setReportData] = useState({ expenses: [], total: 0, breakdown: {} });
 
   const luxuryThemes = [
     { id: 'qatar', name: 'Qatar Airways', colors: ['#4b0d1a', '#c4a46d'] },
@@ -79,51 +83,97 @@ const Settings = () => {
     c.code.toLowerCase().includes(currencySearch.toLowerCase())
   );
 
-  const handleExport = async (tripId = null, tripTitle = null) => {
+  const prepareReportData = async (tripId = null) => {
     if (!user) return;
     setExporting(true);
     try {
       let q = query(collection(db, 'expenses'), where('userId', '==', user.uid), orderBy('timestamp', 'desc'));
       const snapshot = await getDocs(q);
       let totalSum = 0;
-      let rawData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const breakdown = {};
+      const rawData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-      if (tripId) {
-        rawData = rawData.filter(d => d.tripId === tripId);
-      }
+      const filteredData = tripId ? rawData.filter(d => d.tripId === tripId) : rawData;
 
-      const data = rawData.map((d, index) => {
+      const processedExpenses = filteredData.map(d => {
         const date = d.timestamp?.toDate() || (d.dateIST ? new Date(d.dateIST) : new Date());
-        const amt = Number(d.amount) || 0;
+        const originalAmt = Number(d.amount) || 0;
+        const amt = convertAmount(originalAmt, d.currencyCode || 'INR');
         totalSum += amt;
-        return {
-          'Sl. No.': rawData.length - index,
-          'Note': d.note || '-',
-          'Category': d.category || 'Other',
-          'Amount': amt,
-          'Currency': d.currency || '₹',
-          'Date': formatIST(date, 'yyyy-MM-dd'),
-          'Time': formatIST(date, 'HH:mm:ss')
-        };
+
+        if (d.category) {
+          breakdown[d.category] = (breakdown[d.category] || 0) + amt;
+        }
+
+        return { ...d, resolvedDate: date, resolvedAmount: amt };
       });
 
-      const wb = XLSX.utils.book_new();
-      const masterWithTotal = [...data, {}, { 'Note': 'TOTAL EXPENDITURE', 'Amount': totalSum }];
-      const ws = XLSX.utils.json_to_sheet(masterWithTotal);
-      XLSX.utils.book_append_sheet(wb, ws, "Master Portfolio");
-
-      const categoriesInEntries = [...new Set(data.map(item => item.Category))];
-      categoriesInEntries.forEach(cat => {
-        const catData = data.filter(item => item.Category === cat);
-        const catSum = catData.reduce((acc, curr) => acc + curr.Amount, 0);
-        const catWithTotal = [...catData, {}, { 'Note': `TOTAL ${cat.toUpperCase()}`, 'Amount': catSum }];
-        const catWs = XLSX.utils.json_to_sheet(catWithTotal);
-        XLSX.utils.book_append_sheet(wb, catWs, cat.substring(0, 31));
+      setReportData({
+        expenses: processedExpenses,
+        total: totalSum,
+        breakdown,
+        tripTitle: tripId ? filteredData[0]?.tripName : null
       });
+      setShowReportPreview(true);
+    } catch (e) {
+      console.error(e);
+      alert("Failed to prepare report.");
+    } finally {
+      setExporting(false);
+    }
+  };
 
-      const fileName = tripTitle ? `Trip_${tripTitle}_${formatIST(new Date(), 'yyyy-MM-dd')}.xlsx` : `Wealth_Portfolio_${formatIST(new Date(), 'yyyy-MM-dd')}.xlsx`;
-      XLSX.writeFile(wb, fileName);
-    } catch (e) { alert("Export failed."); } finally { setExporting(false); }
+  const exportToExcel = () => {
+    const { expenses, total, tripTitle } = reportData;
+    const data = expenses.map((d, index) => ({
+      'Sl. No.': expenses.length - index,
+      'Note': d.note || '-',
+      'Category': d.category || 'Other',
+      'Amount': d.resolvedAmount,
+      'Currency': currency,
+      'Original Amount': d.amount,
+      'Original Currency': d.currency || '₹',
+      'Date': formatIST(d.resolvedDate, 'yyyy-MM-dd'),
+      'Time': formatIST(d.resolvedDate, 'HH:mm:ss')
+    }));
+
+    const wb = XLSX.utils.book_new();
+    const masterWithTotal = [...data, {}, { 'Note': 'TOTAL EXPENDITURE', 'Amount': total }];
+    const ws = XLSX.utils.json_to_sheet(masterWithTotal);
+    XLSX.utils.book_append_sheet(wb, ws, "Master Portfolio");
+
+    const categoriesInEntries = [...new Set(data.map(item => item.Category))];
+    categoriesInEntries.forEach(cat => {
+      const catData = data.filter(item => item.Category === cat);
+      const catSum = catData.reduce((acc, curr) => acc + curr.Amount, 0);
+      const catWithTotal = [...catData, {}, { 'Note': `TOTAL ${cat.toUpperCase()}`, 'Amount': catSum }];
+      const catWs = XLSX.utils.json_to_sheet(catWithTotal);
+      XLSX.utils.book_append_sheet(wb, catWs, cat.substring(0, 31));
+    });
+
+    const fileName = tripTitle ? `Trip_${tripTitle}_${formatIST(new Date(), 'yyyy-MM-dd')}.xlsx` : `Wealth_Portfolio_${formatIST(new Date(), 'yyyy-MM-dd')}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+  };
+
+  const exportToPDF = async () => {
+    const element = document.getElementById('report-content');
+    const canvas = await html2canvas(element, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: window.getComputedStyle(element).backgroundColor
+    });
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const imgProps = pdf.getImageProperties(imgData);
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+    // If it's too long, it might need more than one page, but for a summary we'll keep it simple
+    // and maybe just let it be a bit longer than A4 if needed, or scale it.
+    // Standard A4 is 210 x 297mm.
+
+    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+    pdf.save(`Wealth_Report_${formatIST(new Date(), 'yyyy-MM-dd')}.pdf`);
   };
 
   const handleRename = (oldName) => {
@@ -320,7 +370,7 @@ const Settings = () => {
         <div className="space-y-3">
           <button onClick={() => setActiveTutorial('pwa')} className="w-full flex items-center justify-between bg-foreground/5 p-6 rounded-[32px] font-bold active:bg-foreground/10 transition-all border border-foreground/5"><div className="flex items-center gap-4"><Smartphone className="w-6 h-6 text-primary" />Home Screen</div><ChevronRight className="w-5 h-5 opacity-40" /></button>
           <button onClick={() => setActiveTutorial('backtap')} className="w-full flex items-center justify-between bg-foreground/5 p-6 rounded-[32px] font-bold active:bg-foreground/10 transition-all border border-foreground/5"><div className="flex items-center gap-4"><Fingerprint className="w-6 h-6 text-primary" />Back Tap</div><ChevronRight className="w-5 h-5 opacity-40" /></button>
-          <button onClick={() => handleExport()} disabled={exporting} className="w-full flex items-center justify-between bg-primary/5 p-6 rounded-[32px] font-bold active:bg-primary/10 transition-all border border-primary/10 text-primary"><div className="flex items-center gap-4"><Download className="w-6 h-6" />Export Report</div><ChevronRight className="w-5 h-5 opacity-40" /></button>
+          <button onClick={() => prepareReportData()} disabled={exporting} className="w-full flex items-center justify-between bg-primary/5 p-6 rounded-[32px] font-bold active:bg-primary/10 transition-all border border-primary/10 text-primary"><div className="flex items-center gap-4"><Download className="w-6 h-6" />{exporting ? 'Preparing...' : 'Export Report'}</div><ChevronRight className="w-5 h-5 opacity-40" /></button>
           <button onClick={logout} className="w-full flex items-center justify-between bg-red-500/5 p-6 rounded-[32px] font-bold text-red-500 active:bg-red-500/10 border border-red-500/10"><div className="flex items-center gap-4"><LogOut className="w-6 h-6" />Terminate Session</div></button>
         </div>
       </section>
@@ -442,7 +492,7 @@ const Settings = () => {
                           <h4 className="font-bold text-lg">{trip.name}</h4>
                           <p className="text-[10px] text-foreground/40 font-bold uppercase tracking-widest">{formatIST(new Date(trip.startDate), 'MMM d, yyyy')}</p>
                         </div>
-                        <button onClick={() => handleExport(trip.id, trip.name)} className="p-3 bg-primary/10 text-primary rounded-2xl active:scale-90 transition-transform">
+                        <button onClick={() => prepareReportData(trip.id)} className="p-3 bg-primary/10 text-primary rounded-2xl active:scale-90 transition-transform">
                           <Download className="w-5 h-5" />
                         </button>
                       </div>
@@ -467,6 +517,111 @@ const Settings = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {showReportPreview && (
+        <div className="fixed inset-0 z-[120] bg-black/90 backdrop-blur-2xl flex flex-col p-4 overflow-y-auto no-scrollbar">
+          <div className="flex justify-between items-center mb-6 pt-safe">
+             <button onClick={() => setShowReportPreview(false)} className="p-3 bg-foreground/10 rounded-full text-foreground"><X className="w-6 h-6" /></button>
+             <div className="flex gap-2">
+                <button onClick={exportToExcel} className="p-3 bg-primary/10 rounded-full text-primary flex items-center gap-2 font-bold text-xs"><Download className="w-4 h-4" /> EXCEL</button>
+                <button onClick={exportToPDF} className="p-3 bg-primary rounded-full text-primary-foreground flex items-center gap-2 font-bold text-xs"><Download className="w-4 h-4" /> PDF</button>
+             </div>
+          </div>
+
+          <div id="report-content" className="bg-background rounded-[48px] p-8 space-y-10 border border-foreground/5 shadow-2xl overflow-hidden relative">
+            <div className="absolute -right-20 -top-20 w-64 h-64 bg-primary/10 rounded-full blur-3xl" />
+            <div className="absolute -left-20 bottom-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl" />
+
+            <div className="relative space-y-4">
+               <p className="text-primary font-bold tracking-[0.4em] text-[10px] uppercase">Wealth Report • {formatIST(new Date(), 'MMM yyyy')}</p>
+               <h2 className="text-5xl font-bold font-display tracking-tighter leading-none text-foreground">
+                 {reportData.tripTitle ? reportData.tripTitle : 'Total Portfolio'}
+               </h2>
+               <div className="h-1 w-20 bg-primary rounded-full" />
+            </div>
+
+            <div className="grid grid-cols-1 gap-8 relative">
+               <div className="space-y-1">
+                 <p className="text-foreground/30 font-bold uppercase tracking-widest text-[10px]">Net Outflow</p>
+                 <div className="text-6xl font-bold tracking-tighter text-foreground flex items-baseline">
+                   <span className="text-2xl mr-1 opacity-40">{currency}</span>
+                   {reportData.total.toLocaleString()}
+                 </div>
+               </div>
+
+               <div className="space-y-4">
+                 <p className="text-foreground/30 font-bold uppercase tracking-widest text-[10px]">Spending Trend</p>
+                 <div className="flex items-end justify-between h-20 gap-2 px-2 pt-4">
+                    {(() => {
+                      const trend = {};
+                      reportData.expenses.slice(0, 30).forEach(exp => {
+                        const day = formatIST(exp.resolvedDate, 'EEE');
+                        trend[day] = (trend[day] || 0) + exp.resolvedAmount;
+                      });
+                      const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                      const maxTrend = Math.max(...Object.values(trend), 1);
+                      return days.map(day => (
+                        <div key={day} className="flex-1 flex flex-col items-center gap-2">
+                           <div className="w-full bg-primary/10 rounded-full h-12 flex items-end overflow-hidden">
+                              <div className="w-full bg-primary" style={{ height: `${((trend[day] || 0) / maxTrend) * 100}%` }} />
+                           </div>
+                           <span className="text-[8px] font-black text-foreground/20 uppercase">{day}</span>
+                        </div>
+                      ));
+                    })()}
+                 </div>
+               </div>
+
+               <div className="space-y-4">
+                 <p className="text-foreground/30 font-bold uppercase tracking-widest text-[10px]">Allocation Breakdown</p>
+                 <div className="space-y-3">
+                   {Object.entries(reportData.breakdown).sort((a,b) => b[1] - a[1]).map(([cat, amt]) => (
+                     <div key={cat} className="flex flex-col gap-2">
+                        <div className="flex justify-between items-center text-sm font-bold">
+                           <span className="text-foreground/60">{cat}</span>
+                           <span className="text-primary">{currency}{amt.toLocaleString()}</span>
+                        </div>
+                        <div className="h-1.5 w-full bg-foreground/5 rounded-full overflow-hidden">
+                           <div className="h-full bg-primary" style={{ width: `${(amt / reportData.total) * 100}%` }} />
+                        </div>
+                     </div>
+                   ))}
+                 </div>
+               </div>
+            </div>
+
+            <div className="space-y-4 relative">
+               <p className="text-foreground/30 font-bold uppercase tracking-widest text-[10px]">Recent Activity</p>
+               <div className="space-y-4">
+                 {reportData.expenses.slice(0, 10).map((exp, i) => (
+                   <div key={i} className="flex justify-between items-center pb-4 border-b border-foreground/5 last:border-0">
+                      <div className="space-y-0.5">
+                         <p className="font-bold text-sm text-foreground/80">{exp.note || 'General'}</p>
+                         <p className="text-[10px] font-bold text-foreground/20 uppercase tracking-widest">{formatIST(exp.resolvedDate, 'MMM d')}</p>
+                      </div>
+                      <div className="text-right">
+                         <p className="font-bold text-sm text-foreground/60">{currency}{exp.resolvedAmount.toLocaleString()}</p>
+                         <p className="text-[8px] font-black text-primary/40 uppercase tracking-tighter">{exp.category}</p>
+                      </div>
+                   </div>
+                 ))}
+                 {reportData.expenses.length > 10 && (
+                   <p className="text-center text-[10px] font-bold text-foreground/20 uppercase tracking-widest pt-2">+ {reportData.expenses.length - 10} more transactions</p>
+                 )}
+               </div>
+            </div>
+
+            <div className="pt-10 border-t border-foreground/5 flex justify-between items-center opacity-30">
+               <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-primary-foreground font-black text-xs">K</div>
+                  <span className="font-black tracking-tighter text-sm italic">Ka-Ching!</span>
+               </div>
+               <p className="text-[8px] font-bold uppercase tracking-widest">Confidential Wealth Summary</p>
+            </div>
+          </div>
+          <div className="h-20" />
+        </div>
+      )}
 
       {activeTutorial && (
         <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-xl flex items-end sm:items-center justify-center p-4">
