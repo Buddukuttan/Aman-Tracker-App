@@ -8,6 +8,7 @@ import Settings from './screens/Settings';
 import Login from './screens/Login';
 import { PlusCircle, LayoutDashboard, Settings as SettingsIcon, ShieldCheck, Lock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import ErrorBoundary from './components/ErrorBoundary';
 
 function App() {
   const { user, loading } = useAuth();
@@ -116,5 +117,11 @@ function App() {
   );
 }
 
-const AppWrapper = () => (<SettingsProvider><App /></SettingsProvider>);
+const AppWrapper = () => (
+  <ErrorBoundary>
+    <SettingsProvider>
+      <App />
+    </SettingsProvider>
+  </ErrorBoundary>
+);
 export default AppWrapper;

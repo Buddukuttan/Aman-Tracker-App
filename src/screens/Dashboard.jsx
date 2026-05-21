@@ -4,7 +4,7 @@ import { collection, query, where, orderBy, onSnapshot, deleteDoc, doc } from 'f
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 import { registerBiometrics, isWebAuthnSupported } from '../lib/webauthn';
-import { getISTBoundaries, formatIST, getDaysRemainingInMonth } from '../lib/utils';
+import { getISTBoundaries, formatIST, getDaysRemainingInMonth, parseSafeDate } from '../lib/utils';
 import SpendingChart from '../components/SpendingChart';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -45,8 +45,7 @@ const Dashboard = () => {
       const tripBreakdown = {};
 
       docs.forEach(exp => {
-        // CRITICAL FIX: Handle pending server timestamps which are null
-        const date = exp.timestamp?.toDate ? exp.timestamp.toDate() : (exp.dateIST ? new Date(exp.dateIST) : new Date());
+        const date = parseSafeDate(exp.timestamp || exp.dateIST);
 
         // Convert amount to current currency if it was recorded in a different one
         const originalAmt = Number(exp.amount) || 0;
@@ -361,7 +360,7 @@ const Dashboard = () => {
                       <span>Swipe left to release record</span>
                    </div>
                    {expenses.map((item) => {
-                     const date = item.timestamp?.toDate ? item.timestamp.toDate() : (item.dateIST ? new Date(item.dateIST) : new Date());
+                     const date = parseSafeDate(item.timestamp || item.dateIST);
                      return (
                        <div key={item.id} className="relative h-20 group overflow-hidden bg-red-500 rounded-[32px]">
                          <div className="absolute inset-0 flex justify-end items-center px-8 text-white font-black text-[10px] tracking-widest uppercase">RELEASE RECORD</div>
