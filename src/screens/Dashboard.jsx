@@ -23,68 +23,66 @@ const Dashboard = () => {
   const [expandedCategory, setExpandedCategory] = useState(null);
   const [showWealthReport, setShowWealthReport] = useState(false);
   const [showFullHistory, setShowFullHistory] = useState(false);
-  const [viewMode, setViewMode] = useState('categories'); // 'categories' or 'all'
   const [stats, setStats] = useState({ today: 0, week: 0, month: 0, lastWeek: 0, total: 0 });
   const [categoryBreakdown, setCategoryBreakdown] = useState({});
   const [tripStats, setTripStats] = useState({ total: 0, breakdown: {} });
 
+  // 1. Fetch Expenses Only
   useEffect(() => {
     if (!user) return;
-    const { today, week, month } = getISTBoundaries();
-    // Fetch with snapshot listener
     const q = query(collection(db, 'expenses'), where('userId', '==', user.uid), orderBy('timestamp', 'desc'));
-
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-      let tTotal = 0, wTotal = 0, mTotal = 0, lwTotal = 0, allTotal = 0;
-      const breakdown = {};
-      const lastWeekStart = new Date(week); lastWeekStart.setDate(lastWeekStart.getDate() - 7);
-
-      let tripTotal = 0;
-      const tripBreakdown = {};
-
-      docs.forEach(exp => {
-        const date = parseSafeDate(exp.timestamp || exp.dateIST);
-
-        // Convert amount to current currency if it was recorded in a different one
-        const originalAmt = Number(exp.amount) || 0;
-        const amt = convertAmount(originalAmt, exp.currencyCode || 'INR'); // Default to INR for old records
-
-        allTotal += amt;
-
-        if (date >= today) tTotal += amt;
-        if (date >= week) wTotal += amt;
-        if (date >= lastWeekStart && date < week) lwTotal += amt;
-        if (date >= month) {
-          mTotal += amt;
-          if (exp.category) {
-            breakdown[exp.category] = breakdown[exp.category] || { total: 0, items: [] };
-            breakdown[exp.category].total += amt;
-            breakdown[exp.category].items.push({ ...exp, resolvedDate: date });
-          }
-        }
-
-        if (travelMode && currentTrip && exp.tripId === currentTrip.id) {
-          tripTotal += amt;
-          if (exp.category) {
-            tripBreakdown[exp.category] = (tripBreakdown[exp.category] || 0) + amt;
-          }
-        }
-      });
-
       setExpenses(docs);
-      setStats({ today: tTotal, week: wTotal, month: mTotal, lastWeek: lwTotal, total: allTotal });
-      setCategoryBreakdown(breakdown);
-      setTripStats({ total: tripTotal, breakdown: tripBreakdown });
       setLoading(false);
     }, (err) => {
       console.error("Firestore error:", err);
       setLoading(false);
     });
-
     return () => unsubscribe();
   }, [user]);
+
+  // 2. Calculate Statistics (Reactive to expenses and travelMode changes)
+  useEffect(() => {
+    const { today, week, month } = getISTBoundaries();
+    const lastWeekStart = new Date(week);
+    lastWeekStart.setDate(lastWeekStart.getDate() - 7);
+
+    let tTotal = 0, wTotal = 0, mTotal = 0, lwTotal = 0, allTotal = 0;
+    const breakdown = {};
+    let tripTotal = 0;
+    const tripBreakdown = {};
+
+    expenses.forEach(exp => {
+      const date = parseSafeDate(exp.timestamp || exp.dateIST);
+      const originalAmt = Number(exp.amount) || 0;
+      const amt = convertAmount(originalAmt, exp.currencyCode || 'INR');
+
+      allTotal += amt;
+      if (date >= today) tTotal += amt;
+      if (date >= week) wTotal += amt;
+      if (date >= lastWeekStart && date < week) lwTotal += amt;
+      if (date >= month) {
+        mTotal += amt;
+        if (exp.category) {
+          breakdown[exp.category] = breakdown[exp.category] || { total: 0, items: [] };
+          breakdown[exp.category].total += amt;
+          breakdown[exp.category].items.push({ ...exp, resolvedDate: date });
+        }
+      }
+
+      if (travelMode && currentTrip && exp.tripId === currentTrip.id) {
+        tripTotal += amt;
+        if (exp.category) {
+          tripBreakdown[exp.category] = (tripBreakdown[exp.category] || 0) + amt;
+        }
+      }
+    });
+
+    setStats({ today: tTotal, week: wTotal, month: mTotal, lastWeek: lwTotal, total: allTotal });
+    setCategoryBreakdown(breakdown);
+    setTripStats({ total: tripTotal, breakdown: tripBreakdown });
+  }, [expenses, travelMode, currentTrip, convertAmount]);
 
   const handleDelete = async (id) => {
     try {
