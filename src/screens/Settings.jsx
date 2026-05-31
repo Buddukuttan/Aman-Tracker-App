@@ -259,12 +259,16 @@ const Settings = () => {
                 } else {
                   // Turn OFF -> Delete
                   if (confirm("Disable security vault and delete biometric credential?")) {
+                    setRegisteringBiometrics(true); // Reuse loading state
                     try {
                       await unregisterBiometrics(user);
                       setIsBiometricEnrolled(false);
                       setBiometricEnabled(false);
                     } catch (e) {
-                      alert("Failed to disable: " + e.message);
+                      console.error("Failed to disable:", e);
+                      alert("Failed to disable: " + (e.message || "Permissions denied"));
+                    } finally {
+                      setRegisteringBiometrics(false);
                     }
                   }
                 }
