@@ -71,13 +71,18 @@ export const SettingsProvider = ({ children }) => {
     const checkBiometrics = async () => {
       if (user) {
         try {
+          console.log("Checking biometric enrollment for:", user.uid);
           const credentialDoc = await getDoc(doc(db, "biometric_credentials", user.uid));
           const exists = credentialDoc.exists();
           setIsBiometricEnrolled(exists);
           localStorage.setItem('kaching_isLocallyEnrolled', exists);
+          console.log("Biometric enrollment status:", exists);
         } catch (e) {
           console.error("Failed to check biometrics:", e);
         }
+      } else {
+        setIsBiometricEnrolled(false);
+        localStorage.removeItem('kaching_isLocallyEnrolled');
       }
     };
     checkBiometrics();

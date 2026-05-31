@@ -259,15 +259,19 @@ const Settings = () => {
                 } else {
                   // Turn OFF -> Delete
                   if (confirm("Disable security vault and delete biometric credential?")) {
-                    setRegisteringBiometrics(true); // Reuse loading state
+                    setRegisteringBiometrics(true);
                     try {
+                      console.log("Attempting to unregister biometrics...");
                       await unregisterBiometrics(user);
+                      console.log("Successfully unregistered biometrics from database.");
+                    } catch (e) {
+                      console.error("Critical: Failed to delete biometric records from database", e);
+                      // We still allow disabling the UI lock even if database deletion fails
+                      // to prevent the user from being locked into a state they can't change.
+                      alert("Warning: Local lock disabled, but server records could not be removed. Error: " + (e.message || "Permissions denied"));
+                    } finally {
                       setIsBiometricEnrolled(false);
                       setBiometricEnabled(false);
-                    } catch (e) {
-                      console.error("Failed to disable:", e);
-                      alert("Failed to disable: " + (e.message || "Permissions denied"));
-                    } finally {
                       setRegisteringBiometrics(false);
                     }
                   }
