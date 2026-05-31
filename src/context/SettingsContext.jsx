@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { db } from '../lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
@@ -135,7 +135,13 @@ export const SettingsProvider = ({ children }) => {
     localStorage.setItem('kaching_trips', JSON.stringify(trips));
   }, [trips]);
 
-  const startTrip = (name, budget) => {
+  // Force sync between travelMode and currentTrip
+  useEffect(() => {
+    if (currentTrip && !travelMode) setTravelMode(true);
+    if (!currentTrip && travelMode) setTravelMode(false);
+  }, [currentTrip, travelMode]);
+
+  const startTrip = useCallback((name, budget) => {
     const newTrip = {
       id: Date.now().toString(),
       name,
@@ -144,53 +150,59 @@ export const SettingsProvider = ({ children }) => {
     };
     setCurrentTrip(newTrip);
     setTravelMode(true);
-  };
+  }, []);
 
-  const endTrip = (totalSpent) => {
-    if (currentTrip) {
-      const completedTrip = {
-        ...currentTrip,
-        endDate: new Date().toISOString(),
-        totalSpent
-      };
-      setTrips([completedTrip, ...trips]);
-      setCurrentTrip(null);
-      setTravelMode(false);
+  const endTrip = useCallback((totalSpent) => {
+    setCurrentTrip(prev => {
+      if (prev) {
+        const completedTrip = {
+          ...prev,
+          endDate: new Date().toISOString(),
+          totalSpent: Number(totalSpent) || 0
+        };
+        setTrips(all => {
+          if (all.some(t => t.id === completedTrip.id)) return all;
+          return [completedTrip, ...all];
+        });
+      }
+      return null;
+    });
+    setTravelMode(false);
+    localStorage.removeItem('kaching_currentTrip');
+  }, []);
+
+  const deleteTrip = useCallback((id) => {
+    setTrips(prev => prev.filter(t => t.id !== id));
+  }, []);
+
+  const addCategory = useCallback((name) => {
+    if (name) {
+      setCategories(prev => prev.includes(name) ? prev : [...prev, name]);
     }
-  };
+  }, []);
 
-  const deleteTrip = (id) => {
-    setTrips(trips.filter(t => t.id !== id));
-  };
+  const removeCategory = useCallback((name) => {
+    setCategories(prev => prev.length > 1 ? prev.filter(c => c !== name) : prev);
+  }, []);
 
-  const addCategory = (name) => {
-    if (name && !categories.includes(name)) setCategories([...categories, name]);
-  };
+  const updateQuickAmount = useCallback((index, amount) => {
+    setQuickAmounts(prev => {
+      const next = [...prev];
+      next[index] = Number(amount);
+      return next;
+    });
+  }, []);
 
-  const removeCategory = (name) => {
-    if (categories.length > 1) setCategories(categories.filter(c => c !== name));
-  };
-
-  const updateQuickAmount = (index, amount) => {
-    const newAmounts = [...quickAmounts];
-    newAmounts[index] = Number(amount);
-    setQuickAmounts(newAmounts);
-  };
-
-  const convertAmount = (amount, fromCode) => {
+  const convertAmount = useCallback((amount, fromCode) => {
     if (!fromCode || fromCode === currencyCode) return amount;
-    // We want to convert FROM fromCode TO currencyCode
-    // The rates we have are based on currencyCode (Base: currencyCode)
-    // So 1 currencyCode = exchangeRates[fromCode] fromCode
-    // amount in fromCode / exchangeRates[fromCode] = amount in currencyCode
     const rate = exchangeRates[fromCode];
     if (rate) {
       return amount / rate;
     }
-    return amount; // Fallback
-  };
+    return amount;
+  }, [currencyCode, exchangeRates]);
 
-  const value = {
+  const value = React.useMemo(() => ({
     categories, addCategory, removeCategory, setCategories,
     quickAmounts, updateQuickAmount,
     colorScheme, setColorScheme,
@@ -204,7 +216,21 @@ export const SettingsProvider = ({ children }) => {
     travelMode, setTravelMode,
     currentTrip, startTrip, endTrip,
     trips, deleteTrip
-  };
+  }), [
+    categories, addCategory, removeCategory, setCategories,
+    quickAmounts, updateQuickAmount,
+    colorScheme, setColorScheme,
+    budgetEnabled, setBudgetEnabled,
+    dailyBudget, setDailyBudget,
+    biometricEnabled, setBiometricEnabled,
+    isBiometricEnrolled, setIsBiometricEnrolled,
+    currency, setCurrency,
+    currencyCode, setCurrencyCode,
+    exchangeRates, convertAmount,
+    travelMode, setTravelMode,
+    currentTrip, startTrip, endTrip,
+    trips, deleteTrip
+  ]);
 
   return (
     <SettingsContext.Provider value={value}>

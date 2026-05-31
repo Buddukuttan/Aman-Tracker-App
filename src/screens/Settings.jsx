@@ -351,14 +351,23 @@ const Settings = () => {
               </div>
             </div>
             <button
-              onClick={() => {
+              onClick={async () => {
                 if (travelMode) {
                    if (currentTrip && confirm("Terminate current trip and save to history?")) {
-                      // We need to calculate the total spent for the trip
-                      // Since we don't have it easily available here, we'll use a placeholder or
-                      // better yet, we just end it. The Dashboard calculates it live.
-                      // Actually, let's keep it consistent.
-                      endTrip(0); // The user might prefer terminating from Dashboard for accurate total
+                      // IMPROVED: Calculate total before ending if in Settings
+                      try {
+                        let q = query(collection(db, 'expenses'), where('userId', '==', user.uid), where('tripId', '==', currentTrip.id));
+                        const snap = await getDocs(q);
+                        let total = 0;
+                        snap.docs.forEach(d => {
+                          const data = d.data();
+                          total += convertAmount(Number(data.amount) || 0, data.currencyCode || 'INR');
+                        });
+                        endTrip(total);
+                      } catch (e) {
+                        console.error("Failed to calc trip total", e);
+                        endTrip(0);
+                      }
                    } else if (!currentTrip) {
                       setTravelMode(false);
                    }
