@@ -85,7 +85,7 @@ const Settings = () => {
     c.code.toLowerCase().includes(currencySearch.toLowerCase())
   );
 
-  const prepareReportData = async (tripId = null) => {
+  const prepareReportData = async (tripId = null, returnOnly = false) => {
     if (!user) return;
     setExporting(true);
     try {
@@ -96,6 +96,7 @@ const Settings = () => {
       const filteredData = tripId ? rawData.filter(d => d.tripId === tripId) : rawData;
 
       if (filteredData.length === 0) {
+        if (returnOnly) return { total: 0 };
         alert("No expenses found for this report.");
         return;
       }
@@ -123,16 +124,20 @@ const Settings = () => {
         return { ...d, resolvedDate: date, resolvedAmount: amt };
       });
 
-      setReportData({
+      const result = {
         expenses: processedExpenses,
         total: totalSum,
         breakdown,
         tripTitle: tripId ? filteredData[0]?.tripName : null
-      });
+      };
+
+      if (returnOnly) return result;
+
+      setReportData(result);
       setShowReportPreview(true);
     } catch (e) {
       console.error(e);
-      alert("Failed to prepare report.");
+      if (!returnOnly) alert("Failed to prepare report.");
     } finally {
       setExporting(false);
     }
@@ -351,14 +356,15 @@ const Settings = () => {
               </div>
             </div>
             <button
-              onClick={() => {
+              onClick={async () => {
                 if (travelMode) {
-                   // End trip logic moved to Dashboard but can be here too
-                   // For now, toggle off just disables it if no active trip,
-                   // or we can show the modal to start a trip
                    if (currentTrip) {
-                      // Already has trip, maybe we just want to disable it?
-                      // Actually requirement says "when toggle this on 2 pop ups open"
+                      if (confirm(`End "${currentTrip.name}" and save to history?`)) {
+                        const data = await prepareReportData(currentTrip.id, true);
+                        endTrip(data?.total || 0);
+                      }
+                   } else {
+                     setTravelMode(false);
                    }
                 } else {
                   setShowTripModal(true);
