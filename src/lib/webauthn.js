@@ -60,11 +60,14 @@ export const registerBiometrics = async (user) => {
   // IMPORTANT: The id must be a Uint8Array and should be unique to the user.
   const userHandle = new TextEncoder().encode(user.uid);
 
+  // DETERMINISTIC RP ID: Must be exactly the domain without port
+  const rpId = window.location.hostname;
+
   const publicKeyCredentialCreationOptions = {
     challenge: challengeBytes,
     rp: {
       name: "Ka-Ching! Wealth",
-      id: window.location.hostname === 'localhost' ? 'localhost' : window.location.hostname,
+      id: rpId,
     },
     user: {
       id: userHandle,
@@ -139,9 +142,11 @@ export const verifyBiometrics = async (user) => {
     createdAt: Date.now()
   });
 
+  const rpId = window.location.hostname;
+
   const publicKeyCredentialRequestOptions = {
     challenge: challengeBytes,
-    rpId: window.location.hostname === 'localhost' ? 'localhost' : window.location.hostname,
+    rpId: rpId,
     allowCredentials: [{
       id: base64URLToBuffer(storedCredential.rawId),
       type: 'public-key',
