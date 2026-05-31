@@ -58,7 +58,9 @@ export const SettingsProvider = ({ children }) => {
   });
 
   const { user } = useAuth();
-  const [isBiometricEnrolled, setIsBiometricEnrolled] = useState(false);
+  const [isBiometricEnrolled, setIsBiometricEnrolled] = useState(() => {
+    return localStorage.getItem('kaching_isLocallyEnrolled') === 'true';
+  });
 
   const [trips, setTrips] = useState(() => {
     const saved = localStorage.getItem('kaching_trips');
@@ -68,8 +70,14 @@ export const SettingsProvider = ({ children }) => {
   useEffect(() => {
     const checkBiometrics = async () => {
       if (user) {
-        const credentialDoc = await getDoc(doc(db, "biometric_credentials", user.uid));
-        setIsBiometricEnrolled(credentialDoc.exists());
+        try {
+          const credentialDoc = await getDoc(doc(db, "biometric_credentials", user.uid));
+          const exists = credentialDoc.exists();
+          setIsBiometricEnrolled(exists);
+          localStorage.setItem('kaching_isLocallyEnrolled', exists);
+        } catch (e) {
+          console.error("Failed to check biometrics:", e);
+        }
       }
     };
     checkBiometrics();

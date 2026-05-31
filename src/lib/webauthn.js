@@ -113,6 +113,9 @@ export const registerBiometrics = async (user) => {
     if (err.name === 'NotAllowedError') {
       throw new Error("Registration timed out or was denied by the user.");
     }
+    if (err.code === 'permission-denied' || err.message?.includes('permissions')) {
+      throw new Error("Database Access Denied: Please ask the developer to apply Firestore Security Rules.");
+    }
     throw err;
   }
 };

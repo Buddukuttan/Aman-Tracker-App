@@ -21,6 +21,8 @@ function App() {
   useEffect(() => {
     if (user && biometricEnabled && isBiometricEnrolled) {
       setIsLocked(true);
+      // Auto-trigger unlock when locked
+      handleUnlock();
     }
   }, [user, biometricEnabled, isBiometricEnrolled]);
 

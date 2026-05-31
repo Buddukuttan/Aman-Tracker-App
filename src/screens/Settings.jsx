@@ -233,63 +233,53 @@ const Settings = () => {
               <div className={`p-3 rounded-2xl ${biometricEnabled ? 'bg-primary text-primary-foreground' : 'bg-foreground/10 text-foreground/40'}`}><ShieldCheck className="w-6 h-6" /></div>
               <div>
                 <p className="font-bold">Biometric Lock</p>
-                <p className="text-[10px] text-foreground/40 uppercase font-bold tracking-widest">{biometricEnabled ? 'Active' : 'Disabled'}</p>
+                <div className="flex items-center gap-2">
+                   <p className="text-[10px] text-foreground/40 uppercase font-bold tracking-widest">{biometricEnabled ? 'Active' : 'Disabled'}</p>
+                   {biometricEnabled && isBiometricEnrolled && <Check className="w-3 h-3 text-emerald-500" />}
+                </div>
               </div>
             </div>
             <button
-              onClick={() => setBiometricEnabled(!biometricEnabled)}
-              className={`w-14 h-8 rounded-full relative transition-colors ${biometricEnabled ? 'bg-primary' : 'bg-foreground/20'}`}
+              disabled={registeringBiometrics || !isWebAuthnSupported()}
+              onClick={async () => {
+                if (!biometricEnabled) {
+                  // Turn ON -> Register
+                  setRegisteringBiometrics(true);
+                  try {
+                    await registerBiometrics(user);
+                    setIsBiometricEnrolled(true);
+                    setBiometricEnabled(true);
+                  } catch (e) {
+                    console.error("Enrollment failed:", e);
+                    alert("Enrollment failed: " + (e.message || "Permissions denied"));
+                    // Revert is implicit
+                  } finally {
+                    setRegisteringBiometrics(false);
+                  }
+                } else {
+                  // Turn OFF -> Delete
+                  if (confirm("Disable security vault and delete biometric credential?")) {
+                    try {
+                      await unregisterBiometrics(user);
+                      setIsBiometricEnrolled(false);
+                      setBiometricEnabled(false);
+                    } catch (e) {
+                      alert("Failed to disable: " + e.message);
+                    }
+                  }
+                }
+              }}
+              className={`w-14 h-8 rounded-full relative transition-colors ${biometricEnabled ? 'bg-primary' : 'bg-foreground/20'} ${(!isWebAuthnSupported() || registeringBiometrics) ? 'opacity-30 cursor-not-allowed' : ''}`}
             >
               <motion.div animate={{ x: biometricEnabled ? 24 : 4 }} className="absolute top-1 w-6 h-6 bg-white rounded-full shadow-sm" />
             </button>
           </div>
 
-          {biometricEnabled && (
-            <div className="pt-4 border-t border-foreground/5">
-              {!isWebAuthnSupported() ? (
-                <div className="bg-red-500/10 text-red-500 p-4 rounded-2xl flex items-center gap-3">
-                  <X className="w-5 h-5" />
-                  <span className="text-[10px] font-bold uppercase tracking-widest">Unsupported (Use Safari/HTTPS)</span>
-                </div>
-              ) : !isBiometricEnrolled ? (
-                <button
-                  disabled={registeringBiometrics}
-                  onClick={async () => {
-                    setRegisteringBiometrics(true);
-                    try {
-                      await registerBiometrics(user);
-                      setIsBiometricEnrolled(true);
-                    } catch (e) {
-                      alert("Enrollment failed: " + (e.message || "Unknown error"));
-                    } finally {
-                      setRegisteringBiometrics(false);
-                    }
-                  }}
-                  className="w-full py-4 bg-primary/10 text-primary rounded-2xl font-bold text-xs uppercase tracking-widest active:bg-primary/20 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-                >
-                  <Fingerprint className="w-4 h-4" />
-                  {registeringBiometrics ? 'Opening Scanner...' : 'Register FaceID / TouchID'}
-                </button>
-              ) : (
-                <div className="flex flex-col gap-3">
-                   <div className="bg-emerald-500/10 text-emerald-500 p-4 rounded-2xl flex items-center gap-3">
-                      <Check className="w-5 h-5" />
-                      <span className="text-xs font-bold uppercase tracking-widest">Device Enrolled</span>
-                   </div>
-                   <button
-                    onClick={async () => {
-                      if (confirm("Remove biometric enrollment from this device?")) {
-                        await unregisterBiometrics(user);
-                        setIsBiometricEnrolled(false);
-                      }
-                    }}
-                    className="text-[10px] font-bold text-red-500/40 uppercase tracking-widest text-center"
-                   >
-                     Unregister Device
-                   </button>
-                </div>
-              )}
-            </div>
+          {!isWebAuthnSupported() && (
+             <div className="bg-red-500/10 text-red-500 p-4 rounded-2xl flex items-center gap-3">
+               <X className="w-5 h-5" />
+               <span className="text-[10px] font-bold uppercase tracking-widest leading-tight">Biometrics Unavailable (Requires Safari/HTTPS)</span>
+             </div>
           )}
         </div>
 
