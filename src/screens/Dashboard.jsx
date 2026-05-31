@@ -6,10 +6,47 @@ import { useSettings } from '../context/SettingsContext';
 import { registerBiometrics, isWebAuthnSupported } from '../lib/webauthn';
 import { getISTBoundaries, formatIST, getDaysRemainingInMonth, parseSafeDate } from '../lib/utils';
 import SpendingChart from '../components/SpendingChart';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import {
   PieChart, Trash2, Trophy, ArrowUpRight, ArrowDownRight, X, ChevronRight, Info, TrendingUp, History, ShieldCheck
 } from 'lucide-react';
+
+const SwipeableItem = ({ children, onDelete }) => {
+  const x = useMotionValue(0);
+  const scale = useTransform(x, [-100, 0], [0.94, 1]);
+  const opacity = useTransform(x, [-100, -20], [1, 0]);
+  const btnScale = useTransform(x, [-100, -20], [1, 0.4]);
+
+  return (
+    <div className="relative h-20 group overflow-hidden rounded-[32px] bg-transparent">
+      {/* Delete Action Area */}
+      <div className="absolute inset-y-0 right-0 w-24 flex items-center justify-center">
+        <motion.button
+          style={{ opacity, scale: btnScale }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+          className="w-12 h-12 bg-red-500 text-white rounded-full flex items-center justify-center shadow-2xl shadow-red-500/20 active:scale-90 transition-transform z-0"
+        >
+          <Trash2 className="w-5 h-5" />
+        </motion.button>
+      </div>
+
+      {/* The Swipeable Oval */}
+      <motion.div
+        drag="x"
+        dragConstraints={{ left: -100, right: 0 }}
+        dragElastic={0.05}
+        dragTransition={{ bounceStiffness: 600, bounceDamping: 20 }}
+        style={{ x, scale }}
+        className="absolute inset-0 flex justify-between items-center px-6 rounded-[32px] bg-background border border-foreground/5 z-10 touch-pan-x shadow-sm origin-right"
+      >
+        {children}
+      </motion.div>
+    </div>
+  );
+};
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -277,30 +314,21 @@ const Dashboard = () => {
                   <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="px-3 pb-4 space-y-3 bg-foreground/5 border-t border-foreground/5 overflow-hidden">
                     <div className="pt-2" />
                     {data.items.map((item) => (
-                      <div key={item.id} className="relative h-20 group overflow-hidden bg-red-500 rounded-[32px]">
-                        <div className="absolute inset-0 flex justify-end items-center px-8 text-white font-black text-[10px] tracking-widest uppercase">RELEASE TO DELETE</div>
-                        <motion.div
-                          drag="x"
-                          dragDirectionLock
-                          dragConstraints={{ left: -300, right: 0 }}
-                          dragElastic={{ left: 0.6, right: 0.05 }}
-                          onDragEnd={(_, info) => {
-                            if (info.offset.x < -120) handleDelete(item.id);
-                          }}
-                          className="absolute inset-0 flex justify-between items-center px-6 rounded-[32px] bg-background border border-foreground/5 z-10 touch-pan-x"
-                        >
-                          <div className="flex flex-col gap-1">
-                            <div className="font-bold text-sm text-foreground/80 leading-tight truncate max-w-[150px]">{item.note || 'General Entry'}</div>
-                            <div className="text-[9px] font-semibold text-foreground/20 uppercase tracking-widest">{formatIST(item.resolvedDate, 'MMM d • h:mm a')}</div>
-                          </div>
-                          <div className="flex flex-col items-end">
-                            <div className="font-bold text-sm text-foreground/60">{currency}{convertAmount(item.amount, item.currencyCode || 'INR').toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</div>
-                            {item.currencyCode && item.currencyCode !== currencyCode && (
-                              <div className="text-[8px] opacity-30 font-bold">{item.currency}{item.amount}</div>
-                            )}
-                          </div>
-                        </motion.div>
-                      </div>
+                      <SwipeableItem
+                        key={item.id}
+                        onDelete={() => handleDelete(item.id)}
+                      >
+                        <div className="flex flex-col gap-1">
+                          <div className="font-bold text-sm text-foreground/80 leading-tight truncate max-w-[150px]">{item.note || 'General Entry'}</div>
+                          <div className="text-[9px] font-semibold text-foreground/20 uppercase tracking-widest">{formatIST(item.resolvedDate, 'MMM d • h:mm a')}</div>
+                        </div>
+                        <div className="flex flex-col items-end">
+                          <div className="font-bold text-sm text-foreground/60">{currency}{convertAmount(item.amount, item.currencyCode || 'INR').toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</div>
+                          {item.currencyCode && item.currencyCode !== currencyCode && (
+                            <div className="text-[8px] opacity-30 font-bold">{item.currency}{item.amount}</div>
+                          )}
+                        </div>
+                      </SwipeableItem>
                     ))}
                   </motion.div>
                 )}
@@ -362,33 +390,24 @@ const Dashboard = () => {
                    {expenses.map((item) => {
                      const date = parseSafeDate(item.timestamp || item.dateIST);
                      return (
-                       <div key={item.id} className="relative h-20 group overflow-hidden bg-red-500 rounded-[32px]">
-                         <div className="absolute inset-0 flex justify-end items-center px-8 text-white font-black text-[10px] tracking-widest uppercase">RELEASE RECORD</div>
-                         <motion.div
-                           drag="x"
-                           dragDirectionLock
-                           dragConstraints={{ left: -300, right: 0 }}
-                           dragElastic={{ left: 0.6, right: 0.05 }}
-                           onDragEnd={(_, info) => {
-                             if (info.offset.x < -120) handleDelete(item.id);
-                           }}
-                           className="absolute inset-0 flex justify-between items-center px-6 rounded-[32px] bg-background border border-foreground/5 z-10 touch-pan-x"
-                         >
-                           <div className="flex flex-col gap-1">
-                             <div className="flex items-center gap-2">
-                                <div className="px-1.5 py-0.5 rounded-md bg-foreground/5 text-[8px] font-bold text-foreground/40 uppercase tracking-tighter">{item.category}</div>
-                                <div className="font-bold text-sm text-foreground/80 leading-tight truncate max-w-[120px]">{item.note || 'General Entry'}</div>
-                             </div>
-                             <div className="text-[9px] font-semibold text-foreground/20 uppercase tracking-widest">{formatIST(date, 'MMM d • h:mm a')}</div>
+                       <SwipeableItem
+                         key={item.id}
+                         onDelete={() => handleDelete(item.id)}
+                       >
+                         <div className="flex flex-col gap-1">
+                           <div className="flex items-center gap-2">
+                              <div className="px-1.5 py-0.5 rounded-md bg-foreground/5 text-[8px] font-bold text-foreground/40 uppercase tracking-tighter">{item.category}</div>
+                              <div className="font-bold text-sm text-foreground/80 leading-tight truncate max-w-[120px]">{item.note || 'General Entry'}</div>
                            </div>
-                           <div className="flex flex-col items-end">
-                             <div className="font-bold text-sm text-foreground/60">{currency}{convertAmount(item.amount, item.currencyCode || 'INR').toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</div>
-                             {item.currencyCode && item.currencyCode !== currencyCode && (
-                               <div className="text-[8px] opacity-30 font-bold">{item.currency}{item.amount}</div>
-                             )}
-                           </div>
-                         </motion.div>
-                       </div>
+                           <div className="text-[9px] font-semibold text-foreground/20 uppercase tracking-widest">{formatIST(date, 'MMM d • h:mm a')}</div>
+                         </div>
+                         <div className="flex flex-col items-end">
+                           <div className="font-bold text-sm text-foreground/60">{currency}{convertAmount(item.amount, item.currencyCode || 'INR').toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</div>
+                           {item.currencyCode && item.currencyCode !== currencyCode && (
+                             <div className="text-[8px] opacity-30 font-bold">{item.currency}{item.amount}</div>
+                           )}
+                         </div>
+                       </SwipeableItem>
                      );
                    })}
                    {expenses.length === 0 && (
