@@ -84,7 +84,7 @@ const Dashboard = () => {
     });
 
     return () => unsubscribe();
-  }, [user]);
+  }, [user, travelMode, currentTrip, convertAmount]);
 
   const handleDelete = async (id) => {
     try {

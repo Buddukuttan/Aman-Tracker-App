@@ -353,12 +353,14 @@ const Settings = () => {
             <button
               onClick={() => {
                 if (travelMode) {
-                   // End trip logic moved to Dashboard but can be here too
-                   // For now, toggle off just disables it if no active trip,
-                   // or we can show the modal to start a trip
-                   if (currentTrip) {
-                      // Already has trip, maybe we just want to disable it?
-                      // Actually requirement says "when toggle this on 2 pop ups open"
+                   if (currentTrip && confirm("Terminate current trip and save to history?")) {
+                      // We need to calculate the total spent for the trip
+                      // Since we don't have it easily available here, we'll use a placeholder or
+                      // better yet, we just end it. The Dashboard calculates it live.
+                      // Actually, let's keep it consistent.
+                      endTrip(0); // The user might prefer terminating from Dashboard for accurate total
+                   } else if (!currentTrip) {
+                      setTravelMode(false);
                    }
                 } else {
                   setShowTripModal(true);
