@@ -12,8 +12,8 @@ export default defineConfig({
         name: 'Ka-Ching! Expense Tracker',
         short_name: 'Ka-Ching',
         description: 'Frictionless expense tracking for iPhone',
-        theme_color: '#000000',
-        background_color: '#000000',
+        theme_color: '#1a050a',
+        background_color: '#1a050a',
         display: 'standalone',
         orientation: 'portrait',
         icons: [

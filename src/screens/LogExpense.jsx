@@ -19,7 +19,7 @@ const LogExpense = () => {
   };
 
   return (
-    <motion.div className="flex flex-col w-full max-w-md mx-auto p-6 pt-12">
+    <motion.div className="flex flex-col w-full max-w-md mx-auto p-6 pt-12 safe-area-pt">
       <header className="mb-12">
         <p className="text-foreground/30 font-bold text-[10px] uppercase tracking-widest">TRANSACTION</p>
         <h1 className="text-4xl font-bold font-display tracking-tight">Record</h1>

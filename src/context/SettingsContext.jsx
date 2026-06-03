@@ -99,6 +99,25 @@ export const SettingsProvider = ({ children }) => {
   useEffect(() => {
     localStorage.setItem('kaching_colorScheme', colorScheme);
     document.documentElement.setAttribute('data-theme', colorScheme);
+
+    // Update theme-color meta tag for mobile status bar
+    const bgColor = getComputedStyle(document.documentElement).getPropertyValue('--color-background').trim();
+    const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+    if (metaThemeColor) {
+      // Small delay to ensure CSS variables are applied
+      setTimeout(() => {
+        const actualBg = getComputedStyle(document.body).backgroundColor;
+        metaThemeColor.setAttribute('content', actualBg);
+      }, 50);
+    } else {
+      const meta = document.createElement('meta');
+      meta.name = "theme-color";
+      document.head.appendChild(meta);
+      setTimeout(() => {
+        const actualBg = getComputedStyle(document.body).backgroundColor;
+        meta.setAttribute('content', actualBg);
+      }, 50);
+    }
   }, [colorScheme]);
 
   useEffect(() => {

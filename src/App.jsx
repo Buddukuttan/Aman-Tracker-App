@@ -100,7 +100,7 @@ function App() {
       </main>
 
       {/* FIXED NAV BAR */}
-      <nav className="fixed bottom-0 left-0 right-0 ios-blur border-t border-foreground/5 safe-area-pb z-50 rounded-t-[40px] shadow-[0_-10px_40px_rgba(0,0,0,0.1)] h-24">
+      <nav className="fixed bottom-0 left-0 right-0 ios-blur border-t border-foreground/5 safe-area-pb z-50 rounded-t-[40px] shadow-[0_-10px_40px_rgba(0,0,0,0.1)] h-28">
         <div className="flex justify-around items-center h-full max-w-md mx-auto px-10">
           <button onClick={() => setActiveTab('dashboard')} className={`flex flex-col items-center space-y-2 transition-all ${activeTab === 'dashboard' ? 'text-primary' : 'text-foreground/20'}`}>
             <div className={`p-2.5 rounded-[16px] transition-all ${activeTab === 'dashboard' ? 'bg-primary/10' : ''}`}><LayoutDashboard className="w-6 h-6" /></div>

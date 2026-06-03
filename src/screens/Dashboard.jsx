@@ -142,7 +142,7 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="flex flex-col w-full max-w-md mx-auto p-6 pt-12 space-y-10">
+    <div className="flex flex-col w-full max-w-md mx-auto p-6 pt-12 space-y-10 safe-area-pt">
       <header className="flex justify-between items-end">
         <div className="space-y-1">
           <p className="text-foreground/30 font-bold text-[10px] uppercase tracking-widest">{formatIST(new Date(), 'EEEE, MMM d')}</p>
