@@ -83,7 +83,7 @@ function App() {
   return (
     <div className="h-[100dvh] flex flex-col bg-background text-foreground overflow-hidden font-sans">
       {/* THE MAIN SCROLL CONTAINER */}
-      <main className="flex-1 overflow-y-auto no-scrollbar touch-pan-y relative pb-52">
+      <main className="flex-1 overflow-y-auto no-scrollbar touch-pan-y relative pb-52 safe-area-pt">
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}

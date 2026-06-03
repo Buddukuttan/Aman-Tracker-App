@@ -63,6 +63,11 @@
     -webkit-tap-highlight-color: transparent;
   }
 
+  html {
+    @apply bg-background;
+    transition: background-color 0.5s ease;
+  }
+
   body {
     @apply bg-background text-foreground font-sans antialiased transition-colors duration-500 selection:bg-primary/30;
     overscroll-behavior-y: contain;

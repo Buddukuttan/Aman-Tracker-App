@@ -100,24 +100,32 @@ export const SettingsProvider = ({ children }) => {
     localStorage.setItem('kaching_colorScheme', colorScheme);
     document.documentElement.setAttribute('data-theme', colorScheme);
 
-    // Update theme-color meta tag for mobile status bar
-    const bgColor = getComputedStyle(document.documentElement).getPropertyValue('--color-background').trim();
-    const metaThemeColor = document.querySelector('meta[name="theme-color"]');
-    if (metaThemeColor) {
-      // Small delay to ensure CSS variables are applied
-      setTimeout(() => {
-        const actualBg = getComputedStyle(document.body).backgroundColor;
-        metaThemeColor.setAttribute('content', actualBg);
-      }, 50);
-    } else {
-      const meta = document.createElement('meta');
-      meta.name = "theme-color";
-      document.head.appendChild(meta);
-      setTimeout(() => {
-        const actualBg = getComputedStyle(document.body).backgroundColor;
-        meta.setAttribute('content', actualBg);
-      }, 50);
+    // Exact mapping of theme background colors for meta tag and body background
+    const themeColors = {
+      qatar: '#1d0a0e',
+      onyx: '#000000',
+      emerald: '#0d1a14',
+      nordic: '#1a202c',
+      champagne: '#f8fafc'
+    };
+
+    const targetColor = themeColors[colorScheme] || themeColors.qatar;
+
+    // Update meta tags for both standard and apple-specific behaviors
+    let metaThemeColor = document.querySelector('meta[name="theme-color"]');
+    if (!metaThemeColor) {
+      metaThemeColor = document.createElement('meta');
+      metaThemeColor.name = "theme-color";
+      document.head.appendChild(metaThemeColor);
     }
+    metaThemeColor.setAttribute('content', targetColor);
+
+    // Apply background color to everything that might be visible behind the app
+    document.documentElement.style.backgroundColor = targetColor;
+    document.body.style.backgroundColor = targetColor;
+
+    const root = document.getElementById('root');
+    if (root) root.style.backgroundColor = targetColor;
   }, [colorScheme]);
 
   useEffect(() => {
