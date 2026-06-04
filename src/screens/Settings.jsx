@@ -546,9 +546,33 @@ const Settings = () => {
         <div className="fixed inset-0 z-[120] bg-black/98 backdrop-blur-3xl flex flex-col p-4 overflow-y-auto no-scrollbar">
           <div className="flex justify-between items-center mb-8 pt-safe px-4">
              <button onClick={() => setShowReportPreview(false)} className="p-4 bg-foreground/10 rounded-full text-foreground/80 active:scale-90 transition-transform backdrop-blur-md"><X className="w-6 h-6" /></button>
-             <div className="flex gap-4">
-                <button onClick={exportToExcel} className="px-6 py-4 bg-foreground/5 rounded-2xl text-foreground/60 flex items-center gap-2 font-bold text-[10px] uppercase tracking-[0.2em] active:scale-95 transition-all border border-white/5">CSV/XLSX</button>
-                <button onClick={exportToPDF} className="px-8 py-4 bg-primary rounded-2xl text-primary-foreground flex items-center gap-2 font-bold text-[10px] uppercase tracking-[0.2em] shadow-2xl shadow-primary/30 active:scale-95 transition-all">Export PDF</button>
+             <div className="flex gap-2 sm:gap-4">
+                <button onClick={exportToExcel} className="px-4 sm:px-6 py-4 bg-foreground/5 rounded-2xl text-foreground/60 flex items-center gap-2 font-bold text-[8px] sm:text-[10px] uppercase tracking-[0.2em] active:scale-95 transition-all border border-white/5">XLSX</button>
+                <button
+                  onClick={async () => {
+                    if (navigator.share) {
+                      try {
+                        const element = document.getElementById('report-content');
+                        const canvas = await html2canvas(element, { scale: 2, useCORS: true, backgroundColor: window.getComputedStyle(element).backgroundColor });
+                        canvas.toBlob(async (blob) => {
+                          const file = new File([blob], 'wealth-statement.png', { type: 'image/png' });
+                          await navigator.share({
+                            files: [file],
+                            title: 'My Wealth Statement',
+                            text: 'Check out my portfolio summary from Ka-Ching!',
+                          });
+                        });
+                      } catch (e) {
+                        exportToPDF();
+                      }
+                    } else {
+                      exportToPDF();
+                    }
+                  }}
+                  className="px-6 sm:px-8 py-4 bg-primary rounded-2xl text-primary-foreground flex items-center gap-2 font-bold text-[8px] sm:text-[10px] uppercase tracking-[0.2em] shadow-2xl shadow-primary/30 active:scale-95 transition-all"
+                >
+                  Share / PDF
+                </button>
              </div>
           </div>
 

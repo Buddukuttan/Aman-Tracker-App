@@ -120,6 +120,13 @@ export const SettingsProvider = ({ children }) => {
     }
     metaThemeColor.setAttribute('content', targetColor);
 
+    // Dynamic Status Bar Style for iOS
+    let metaAppleStatus = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+    if (metaAppleStatus) {
+      // Use 'default' (dark icons) for light themes, 'black-translucent' (white icons) for dark themes
+      metaAppleStatus.setAttribute('content', colorScheme === 'champagne' ? 'default' : 'black-translucent');
+    }
+
     // Apply background color to everything that might be visible behind the app
     document.documentElement.style.backgroundColor = targetColor;
     document.body.style.backgroundColor = targetColor;
