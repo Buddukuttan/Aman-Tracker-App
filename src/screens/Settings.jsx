@@ -49,6 +49,8 @@ const Settings = () => {
   const [registeringBiometrics, setRegisteringBiometrics] = useState(false);
   const [showReportPreview, setShowReportPreview] = useState(false);
   const [reportData, setReportData] = useState({ expenses: [], total: 0, breakdown: {} });
+  const [showEndTripConfirm, setShowEndTripConfirm] = useState(false);
+  const [currentTripTotal, setCurrentTripTotal] = useState(0);
 
   const luxuryThemes = [
     { id: 'qatar', name: 'Qatar Airways', colors: ['#4b0d1a', '#c4a46d'] },
@@ -351,8 +353,8 @@ const Settings = () => {
             <button
               onClick={async () => {
                 if (travelMode) {
-                   if (currentTrip && confirm("Terminate current trip and save to history?")) {
-                      // IMPROVED: Calculate total before ending if in Settings
+                   if (currentTrip) {
+                      setExporting(true);
                       try {
                         let q = query(collection(db, 'expenses'), where('userId', '==', user.uid), where('tripId', '==', currentTrip.id));
                         const snap = await getDocs(q);
@@ -361,19 +363,24 @@ const Settings = () => {
                           const data = d.data();
                           total += convertAmount(Number(data.amount) || 0, data.currencyCode || 'INR');
                         });
-                        endTrip(total);
+                        setCurrentTripTotal(total);
+                        setShowEndTripConfirm(true);
                       } catch (e) {
                         console.error("Failed to calc trip total", e);
-                        endTrip(0);
+                        setCurrentTripTotal(0);
+                        setShowEndTripConfirm(true);
+                      } finally {
+                        setExporting(false);
                       }
-                   } else if (!currentTrip) {
+                   } else {
                       setTravelMode(false);
                    }
                 } else {
                   setShowTripModal(true);
                 }
               }}
-              className={`w-14 h-8 rounded-full relative transition-colors ${travelMode ? 'bg-primary' : 'bg-foreground/20'}`}
+              className={`w-14 h-8 rounded-full relative transition-colors ${travelMode ? 'bg-primary' : 'bg-foreground/20'} ${exporting ? 'opacity-50' : ''}`}
+              disabled={exporting}
             >
               <motion.div animate={{ x: travelMode ? 24 : 4 }} className="absolute top-1 w-6 h-6 bg-white rounded-full shadow-sm" />
             </button>
@@ -762,6 +769,35 @@ const Settings = () => {
           <div className="h-32" />
         </div>
       )}
+
+      <AnimatePresence>
+        {showEndTripConfirm && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[150] bg-black/80 backdrop-blur-xl flex items-center justify-center p-8">
+            <motion.div initial={{ scale: 0.95, y: 30 }} animate={{ scale: 1, y: 0 }} className="bg-background w-full max-w-sm rounded-[56px] p-10 border border-foreground/5 relative overflow-hidden text-center space-y-10">
+               <div className="absolute -left-10 -top-10 w-40 h-40 bg-red-500/10 rounded-full blur-3xl" />
+               <div className="w-20 h-20 bg-red-500/10 rounded-[32px] flex items-center justify-center text-red-500 mx-auto shadow-inner"><X className="w-10 h-10" /></div>
+               <div className="space-y-3">
+                 <h3 className="text-3xl font-bold font-display tracking-tight">End Adventure?</h3>
+                 <p className="text-foreground/40 text-sm font-medium">This will finalize your trip and move all records to history.</p>
+               </div>
+               <div className="grid grid-cols-1 gap-3">
+                 <button
+                  onClick={() => {
+                    endTrip(currentTripTotal);
+                    setShowEndTripConfirm(false);
+                  }}
+                  className="w-full py-5 bg-red-500 text-white rounded-[24px] font-bold shadow-2xl shadow-red-500/20 active:scale-95 transition-transform"
+                 >
+                   Terminate & Save
+                 </button>
+                 <button onClick={() => setShowEndTripConfirm(false)} className="w-full py-5 bg-foreground/5 text-foreground/40 rounded-[24px] font-bold active:bg-foreground/10 transition-colors">
+                   Continue Trip
+                 </button>
+               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {activeTutorial && (
         <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-xl flex items-end sm:items-center justify-center p-4">

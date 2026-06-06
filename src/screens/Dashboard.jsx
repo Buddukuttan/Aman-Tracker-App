@@ -63,6 +63,7 @@ const Dashboard = () => {
   const [stats, setStats] = useState({ today: 0, week: 0, month: 0, lastWeek: 0, total: 0 });
   const [categoryBreakdown, setCategoryBreakdown] = useState({});
   const [tripStats, setTripStats] = useState({ total: 0, breakdown: {} });
+  const [showEndTripConfirm, setShowEndTripConfirm] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -233,11 +234,7 @@ const Dashboard = () => {
             </div>
 
             <button
-              onClick={() => {
-                if (confirm("End this trip and save to history?")) {
-                  endTrip(tripStats.total);
-                }
-              }}
+              onClick={() => setShowEndTripConfirm(true)}
               className="w-full py-4 bg-red-500/10 text-red-500 rounded-2xl font-bold text-xs uppercase tracking-widest active:bg-red-500/20 transition-colors"
             >
               Terminate Trip
@@ -416,6 +413,32 @@ const Dashboard = () => {
       </div>
 
       <AnimatePresence>
+        {showEndTripConfirm && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[150] bg-black/80 backdrop-blur-xl flex items-center justify-center p-8">
+            <motion.div initial={{ scale: 0.95, y: 30 }} animate={{ scale: 1, y: 0 }} className="bg-background w-full max-w-sm rounded-[56px] p-10 border border-foreground/5 relative overflow-hidden text-center space-y-10">
+               <div className="absolute -left-10 -top-10 w-40 h-40 bg-red-500/10 rounded-full blur-3xl" />
+               <div className="w-20 h-20 bg-red-500/10 rounded-[32px] flex items-center justify-center text-red-500 mx-auto shadow-inner"><X className="w-10 h-10" /></div>
+               <div className="space-y-3">
+                 <h3 className="text-3xl font-bold font-display tracking-tight">End Adventure?</h3>
+                 <p className="text-foreground/40 text-sm font-medium">This will finalize your trip and move all records to history.</p>
+               </div>
+               <div className="grid grid-cols-1 gap-3">
+                 <button
+                  onClick={() => {
+                    endTrip(tripStats.total);
+                    setShowEndTripConfirm(false);
+                  }}
+                  className="w-full py-5 bg-red-500 text-white rounded-[24px] font-bold shadow-2xl shadow-red-500/20 active:scale-95 transition-transform"
+                 >
+                   Terminate & Save
+                 </button>
+                 <button onClick={() => setShowEndTripConfirm(false)} className="w-full py-5 bg-foreground/5 text-foreground/40 rounded-[24px] font-bold active:bg-foreground/10 transition-colors">
+                   Continue Trip
+                 </button>
+               </div>
+            </motion.div>
+          </motion.div>
+        )}
 
         {showWealthReport && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xl flex items-center justify-center p-8">
