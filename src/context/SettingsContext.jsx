@@ -200,23 +200,26 @@ export const SettingsProvider = ({ children }) => {
   }, []);
 
   const endTrip = useCallback((totalSpent) => {
-    if (!currentTrip) return;
+    setCurrentTrip(prev => {
+      if (!prev) return null;
 
-    const completedTrip = {
-      ...currentTrip,
-      endDate: new Date().toISOString(),
-      totalSpent: Number(totalSpent) || 0
-    };
+      const completedTrip = {
+        ...prev,
+        endDate: new Date().toISOString(),
+        totalSpent: Number(totalSpent) || 0
+      };
 
-    setTrips(all => {
-      if (all.some(t => t.id === completedTrip.id)) return all;
-      return [completedTrip, ...all];
+      setTrips(all => {
+        if (all.some(t => t.id === completedTrip.id)) return all;
+        return [completedTrip, ...all];
+      });
+
+      return null;
     });
 
-    setCurrentTrip(null);
     setTravelMode(false);
     localStorage.removeItem('kaching_currentTrip');
-  }, [currentTrip]);
+  }, []);
 
   const deleteTrip = useCallback((id) => {
     setTrips(prev => prev.filter(t => t.id !== id));
