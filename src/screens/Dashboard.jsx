@@ -4,12 +4,49 @@ import { collection, query, where, orderBy, onSnapshot, deleteDoc, doc } from 'f
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 import { registerBiometrics, isWebAuthnSupported } from '../lib/webauthn';
-import { getISTBoundaries, formatIST, getDaysRemainingInMonth } from '../lib/utils';
+import { getISTBoundaries, formatIST, getDaysRemainingInMonth, parseSafeDate } from '../lib/utils';
 import SpendingChart from '../components/SpendingChart';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import {
-  PieChart, Trash2, Trophy, ArrowUpRight, ArrowDownRight, X, ChevronRight, Info, TrendingUp
+  PieChart, Trash2, Trophy, ArrowUpRight, ArrowDownRight, X, ChevronRight, Info, TrendingUp, History, ShieldCheck
 } from 'lucide-react';
+
+const SwipeableItem = ({ children, onDelete }) => {
+  const x = useMotionValue(0);
+  const scale = useTransform(x, [-100, 0], [0.94, 1]);
+  const opacity = useTransform(x, [-100, -20], [1, 0]);
+  const btnScale = useTransform(x, [-100, -20], [1, 0.4]);
+
+  return (
+    <div className="relative h-20 group overflow-hidden rounded-[32px] bg-transparent">
+      {/* Delete Action Area */}
+      <div className="absolute inset-y-0 right-0 w-24 flex items-center justify-center">
+        <motion.button
+          style={{ opacity, scale: btnScale }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+          className="w-12 h-12 bg-red-500 text-white rounded-full flex items-center justify-center shadow-2xl shadow-red-500/20 active:scale-90 transition-transform z-0"
+        >
+          <Trash2 className="w-5 h-5" />
+        </motion.button>
+      </div>
+
+      {/* The Swipeable Oval */}
+      <motion.div
+        drag="x"
+        dragConstraints={{ left: -100, right: 0 }}
+        dragElastic={0.05}
+        dragTransition={{ bounceStiffness: 600, bounceDamping: 20 }}
+        style={{ x, scale }}
+        className="absolute inset-0 flex justify-between items-center px-6 rounded-[32px] bg-background border border-foreground/5 z-10 touch-pan-x shadow-sm origin-right"
+      >
+        {children}
+      </motion.div>
+    </div>
+  );
+};
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -22,9 +59,11 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [expandedCategory, setExpandedCategory] = useState(null);
   const [showWealthReport, setShowWealthReport] = useState(false);
+  const [viewMode, setViewMode] = useState('categories'); // 'categories' or 'ledger'
   const [stats, setStats] = useState({ today: 0, week: 0, month: 0, lastWeek: 0, total: 0 });
   const [categoryBreakdown, setCategoryBreakdown] = useState({});
   const [tripStats, setTripStats] = useState({ total: 0, breakdown: {} });
+  const [showEndTripConfirm, setShowEndTripConfirm] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -43,8 +82,7 @@ const Dashboard = () => {
       const tripBreakdown = {};
 
       docs.forEach(exp => {
-        // CRITICAL FIX: Handle pending server timestamps which are null
-        const date = exp.timestamp?.toDate ? exp.timestamp.toDate() : (exp.dateIST ? new Date(exp.dateIST) : new Date());
+        const date = parseSafeDate(exp.timestamp || exp.dateIST);
 
         // Convert amount to current currency if it was recorded in a different one
         const originalAmt = Number(exp.amount) || 0;
@@ -83,7 +121,7 @@ const Dashboard = () => {
     });
 
     return () => unsubscribe();
-  }, [user]);
+  }, [user, travelMode, currentTrip, convertAmount]);
 
   const handleDelete = async (id) => {
     try {
@@ -105,7 +143,7 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="flex flex-col w-full max-w-md mx-auto p-6 pt-12 space-y-10">
+    <div className="flex flex-col w-full max-w-md mx-auto p-6 pt-12 space-y-10 safe-area-pt">
       <header className="flex justify-between items-end">
         <div className="space-y-1">
           <p className="text-foreground/30 font-bold text-[10px] uppercase tracking-widest">{formatIST(new Date(), 'EEEE, MMM d')}</p>
@@ -196,11 +234,7 @@ const Dashboard = () => {
             </div>
 
             <button
-              onClick={() => {
-                if (confirm("End this trip and save to history?")) {
-                  endTrip(tripStats.total);
-                }
-              }}
+              onClick={() => setShowEndTripConfirm(true)}
               className="w-full py-4 bg-red-500/10 text-red-500 rounded-2xl font-bold text-xs uppercase tracking-widest active:bg-red-500/20 transition-colors"
             >
               Terminate Trip
@@ -247,80 +281,165 @@ const Dashboard = () => {
 
       <SpendingChart expenses={expenses} currency={currency} />
 
-      {/* Allocation Classes */}
-      <div className="space-y-6 pb-4">
+      {/* Allocation / Ledger Switcher */}
+      <div className="space-y-6 pb-20">
         <div className="flex justify-between items-center px-2">
-          <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-foreground/40 flex items-center gap-2">
-            <PieChart className="w-3.5 h-3.5" /> Asset Allocation
-          </h2>
-          <div className="flex items-center gap-1.5 text-[9px] font-bold text-primary uppercase bg-primary/5 px-3 py-1.5 rounded-full">
-            <Info className="w-3 h-3" />
-            <span>Swipe left to delete</span>
+          <div className="flex bg-foreground/5 p-1 rounded-2xl border border-foreground/5">
+            <button
+              onClick={() => setViewMode('categories')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'categories' ? 'bg-background text-primary shadow-sm' : 'text-foreground/30 hover:text-foreground/60'}`}
+            >
+              <PieChart className="w-3 h-3" />
+              Allocation
+            </button>
+            <button
+              onClick={() => setViewMode('ledger')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'ledger' ? 'bg-background text-primary shadow-sm' : 'text-foreground/30 hover:text-foreground/60'}`}
+            >
+              <History className="w-3 h-3" />
+              Ledger
+            </button>
           </div>
+          {viewMode === 'ledger' && (
+             <div className="px-3 py-1 bg-primary/10 text-primary rounded-full text-[8px] font-black uppercase tracking-widest">
+               {expenses.length} Records
+             </div>
+          )}
         </div>
 
         <div className="space-y-4">
-          {Object.entries(categoryBreakdown).sort((a, b) => b[1].total - a[1].total).map(([cat, data]) => (
-            <div key={cat} className="rounded-[40px] border border-foreground/5 bg-foreground/3 overflow-hidden shadow-sm">
-              <button onClick={() => setExpandedCategory(expandedCategory === cat ? null : cat)} className="w-full p-6 flex items-center justify-between active:bg-foreground/5 transition-colors">
-                <div className="flex flex-col items-start gap-2">
-                  <span className="font-bold text-base tracking-tight">{cat}</span>
-                  <div className="h-1.5 w-24 bg-foreground/10 rounded-full overflow-hidden">
-                    <motion.div initial={{ width: 0 }} animate={{ width: `${((data.total || 0) / (stats.month || 1)) * 100}%` }} className="h-full bg-primary/60" />
-                  </div>
-                </div>
-                <div className="flex items-center gap-5">
-                  <div className="font-bold text-primary text-base">{currency}{(data.total || 0).toLocaleString()}</div>
-                  <ChevronRight className={`w-4 h-4 text-foreground/20 transition-transform ${expandedCategory === cat ? 'rotate-90' : ''}`} />
-                </div>
-              </button>
-
-              <AnimatePresence>
-                {expandedCategory === cat && (
-                  <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="px-3 pb-4 space-y-3 bg-foreground/5 border-t border-foreground/5 overflow-hidden">
-                    <div className="pt-2" />
-                    {data.items.map((item) => (
-                      <div key={item.id} className="relative h-20 group overflow-hidden bg-red-500 rounded-[32px]">
-                        <div className="absolute inset-0 flex justify-end items-center px-8 text-white font-black text-[10px] tracking-widest uppercase">RELEASE TO DELETE</div>
-                        <motion.div
-                          drag="x"
-                          dragDirectionLock
-                          dragConstraints={{ left: -300, right: 0 }}
-                          dragElastic={{ left: 0.6, right: 0.05 }}
-                          onDragEnd={(_, info) => {
-                            if (info.offset.x < -120) handleDelete(item.id);
-                          }}
-                          className="absolute inset-0 flex justify-between items-center px-6 rounded-[32px] bg-background border border-foreground/5 z-10 touch-pan-x"
-                        >
-                          <div className="flex flex-col gap-1">
-                            <div className="font-bold text-sm text-foreground/80 leading-tight truncate max-w-[150px]">{item.note || 'General Entry'}</div>
-                            <div className="text-[9px] font-semibold text-foreground/20 uppercase tracking-widest">{formatIST(item.resolvedDate, 'MMM d • h:mm a')}</div>
-                          </div>
-                          <div className="flex flex-col items-end">
-                            <div className="font-bold text-sm text-foreground/60">{currency}{convertAmount(item.amount, item.currencyCode || 'INR').toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</div>
-                            {item.currencyCode && item.currencyCode !== currencyCode && (
-                              <div className="text-[8px] opacity-30 font-bold">{item.currency}{item.amount}</div>
-                            )}
-                          </div>
-                        </motion.div>
+          <AnimatePresence mode="wait">
+            {viewMode === 'categories' ? (
+              <motion.div
+                key="categories"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="space-y-4"
+              >
+                {Object.entries(categoryBreakdown).sort((a, b) => b[1].total - a[1].total).map(([cat, data]) => (
+                  <div key={cat} className="rounded-[40px] border border-foreground/5 bg-foreground/3 overflow-hidden shadow-sm">
+                    <button onClick={() => setExpandedCategory(expandedCategory === cat ? null : cat)} className="w-full p-6 flex items-center justify-between active:bg-foreground/5 transition-colors text-left">
+                      <div className="flex flex-col items-start gap-2">
+                        <span className="font-bold text-base tracking-tight">{cat}</span>
+                        <div className="h-1.5 w-24 bg-foreground/10 rounded-full overflow-hidden">
+                          <motion.div initial={{ width: 0 }} animate={{ width: `${((data.total || 0) / (stats.month || 1)) * 100}%` }} className="h-full bg-primary/60" />
+                        </div>
                       </div>
-                    ))}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          ))}
+                      <div className="flex items-center gap-5">
+                        <div className="font-bold text-primary text-base">{currency}{(data.total || 0).toLocaleString()}</div>
+                        <ChevronRight className={`w-4 h-4 text-foreground/20 transition-transform ${expandedCategory === cat ? 'rotate-90' : ''}`} />
+                      </div>
+                    </button>
 
-          {Object.keys(categoryBreakdown).length === 0 && (
-            <div className="text-center py-20 bg-foreground/3 rounded-[40px] border border-dashed border-foreground/10">
-              <TrendingUp className="w-10 h-10 text-foreground/10 mx-auto mb-4" />
-              <p className="text-foreground/30 font-medium text-sm">No assets recorded this month</p>
-            </div>
-          )}
+                    <AnimatePresence>
+                      {expandedCategory === cat && (
+                        <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="px-3 pb-4 space-y-3 bg-foreground/5 border-t border-foreground/5 overflow-hidden">
+                          <div className="pt-2" />
+                          {data.items.map((item) => (
+                            <SwipeableItem
+                              key={item.id}
+                              onDelete={() => handleDelete(item.id)}
+                            >
+                              <div className="flex flex-col gap-1">
+                                <div className="font-bold text-sm text-foreground/80 leading-tight truncate max-w-[150px]">{item.note || 'General Entry'}</div>
+                                <div className="text-[9px] font-semibold text-foreground/20 uppercase tracking-widest">{formatIST(item.resolvedDate, 'MMM d • h:mm a')}</div>
+                              </div>
+                              <div className="flex flex-col items-end">
+                                <div className="font-bold text-sm text-foreground/60">{currency}{convertAmount(item.amount, item.currencyCode || 'INR').toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</div>
+                                {item.currencyCode && item.currencyCode !== currencyCode && (
+                                  <div className="text-[8px] opacity-30 font-bold">{item.currency}{item.amount}</div>
+                                )}
+                              </div>
+                            </SwipeableItem>
+                          ))}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                ))}
+                {Object.keys(categoryBreakdown).length === 0 && (
+                  <div className="text-center py-20 bg-foreground/3 rounded-[40px] border border-dashed border-foreground/10">
+                    <TrendingUp className="w-10 h-10 text-foreground/10 mx-auto mb-4" />
+                    <p className="text-foreground/30 font-medium text-sm">No assets recorded this month</p>
+                  </div>
+                )}
+              </motion.div>
+            ) : (
+              <motion.div
+                key="ledger"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="space-y-3"
+              >
+                <div className="flex items-center gap-1.5 text-[9px] font-black text-primary uppercase bg-primary/5 px-4 py-2 rounded-full w-fit mb-2">
+                   <Info className="w-3 h-3" />
+                   <span>Swipe left to reveal delete</span>
+                </div>
+                {expenses.map((item) => {
+                  const date = parseSafeDate(item.timestamp || item.dateIST);
+                  return (
+                    <SwipeableItem
+                      key={item.id}
+                      onDelete={() => handleDelete(item.id)}
+                    >
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2">
+                           <div className="px-1.5 py-0.5 rounded-md bg-foreground/5 text-[8px] font-black text-foreground/40 uppercase tracking-tighter">{item.category}</div>
+                           <div className="font-bold text-sm text-foreground/80 leading-tight truncate max-w-[120px]">{item.note || 'General Entry'}</div>
+                        </div>
+                        <div className="text-[9px] font-semibold text-foreground/20 uppercase tracking-widest">{formatIST(date, 'MMM d • h:mm a')}</div>
+                      </div>
+                      <div className="flex flex-col items-end">
+                        <div className="font-bold text-sm text-foreground/60">{currency}{convertAmount(item.amount, item.currencyCode || 'INR').toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</div>
+                        {item.currencyCode && item.currencyCode !== currencyCode && (
+                          <div className="text-[8px] opacity-30 font-bold">{item.currency}{item.amount}</div>
+                        )}
+                      </div>
+                    </SwipeableItem>
+                  );
+                })}
+                {expenses.length === 0 && (
+                  <div className="text-center py-20 bg-foreground/3 rounded-[40px] border border-dashed border-foreground/10">
+                    <TrendingUp className="w-10 h-10 text-foreground/10 mx-auto mb-4" />
+                    <p className="text-foreground/30 font-medium text-sm">Vault Archive is empty</p>
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
       <AnimatePresence>
+        {showEndTripConfirm && (
+          <motion.div key="end-trip-modal" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[150] bg-black/80 backdrop-blur-xl flex items-center justify-center p-8">
+            <motion.div initial={{ scale: 0.95, y: 30 }} animate={{ scale: 1, y: 0 }} className="bg-background w-full max-w-sm rounded-[56px] p-10 border border-foreground/5 relative overflow-hidden text-center space-y-10">
+               <div className="absolute -left-10 -top-10 w-40 h-40 bg-red-500/10 rounded-full blur-3xl" />
+               <div className="w-20 h-20 bg-red-500/10 rounded-[32px] flex items-center justify-center text-red-500 mx-auto shadow-inner"><X className="w-10 h-10" /></div>
+               <div className="space-y-3">
+                 <h3 className="text-3xl font-bold font-display tracking-tight">End Adventure?</h3>
+                 <p className="text-foreground/40 text-sm font-medium">This will finalize your trip and move all records to history.</p>
+               </div>
+               <div className="grid grid-cols-1 gap-3">
+                 <button
+                  onClick={() => {
+                    endTrip(tripStats.total);
+                    setShowEndTripConfirm(false);
+                  }}
+                  className="w-full py-5 bg-red-500 text-white rounded-[24px] font-bold shadow-2xl shadow-red-500/20 active:scale-95 transition-transform"
+                 >
+                   Terminate & Save
+                 </button>
+                 <button onClick={() => setShowEndTripConfirm(false)} className="w-full py-5 bg-foreground/5 text-foreground/40 rounded-[24px] font-bold active:bg-foreground/10 transition-colors">
+                   Continue Trip
+                 </button>
+               </div>
+            </motion.div>
+          </motion.div>
+        )}
+
         {showWealthReport && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xl flex items-center justify-center p-8">
             <motion.div initial={{ scale: 0.95, y: 30 }} animate={{ scale: 1, y: 0 }} className="bg-background w-full max-w-sm rounded-[56px] p-10 border border-foreground/5 relative overflow-hidden">

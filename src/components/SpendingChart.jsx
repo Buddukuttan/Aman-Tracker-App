@@ -6,6 +6,7 @@ import { toZonedTime } from 'date-fns-tz';
 const IST_TIMEZONE = 'Asia/Kolkata';
 
 import { useSettings } from '../context/SettingsContext';
+import { parseSafeDate } from '../lib/utils';
 
 const SpendingChart = ({ expenses, currency }) => {
   const { convertAmount } = useSettings();
@@ -22,7 +23,7 @@ const SpendingChart = ({ expenses, currency }) => {
         const dayStart = startOfDay(date);
 
         const total = expenses.reduce((acc, exp) => {
-          const expDate = exp.timestamp?.toDate ? exp.timestamp.toDate() : (exp.dateIST ? new Date(exp.dateIST) : new Date());
+          const expDate = parseSafeDate(exp.timestamp || exp.dateIST);
           if (isSameDay(startOfDay(expDate), dayStart)) {
             return acc + convertAmount(Number(exp.amount) || 0, exp.currencyCode || 'INR');
           }
@@ -39,7 +40,7 @@ const SpendingChart = ({ expenses, currency }) => {
         const label = i === 3 ? 'This Week' : `Wk ${format(weekStart, 'd')}`;
 
         const total = expenses.reduce((acc, exp) => {
-          const expDate = exp.timestamp?.toDate ? exp.timestamp.toDate() : (exp.dateIST ? new Date(exp.dateIST) : new Date());
+          const expDate = parseSafeDate(exp.timestamp || exp.dateIST);
           if (isSameWeek(expDate, weekStart, { weekStartsOn: 1 })) {
             return acc + convertAmount(Number(exp.amount) || 0, exp.currencyCode || 'INR');
           }

@@ -1,20 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle2, Send } from 'lucide-react';
-import { db } from '../lib/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { useAuth } from '../context/AuthContext';
+import { CheckCircle2 } from 'lucide-react';
 import { useSettings } from '../context/SettingsContext';
-import { getISTDate } from '../lib/utils';
+import { useTransaction } from '../context/TransactionContext';
 
 const LogExpense = () => {
-  const { user } = useAuth();
-  const { categories, quickAmounts, currency, currencyCode, travelMode, currentTrip } = useSettings();
-  const [amount, setAmount] = useState('');
-  const [category, setCategory] = useState(categories[0]);
-  const [note, setNote] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
+  const { categories, quickAmounts, currency } = useSettings();
+  const { amount, setAmount, category, setCategory, note, setNote, showSuccess } = useTransaction();
   const amountInputRef = useRef(null);
 
   useEffect(() => { if (amountInputRef.current) amountInputRef.current.focus(); }, []);
@@ -26,37 +18,14 @@ const LogExpense = () => {
     });
   };
 
-  const handleSubmit = async (e) => {
-    if (e) e.preventDefault();
-    if (!amount || isNaN(amount) || Number(amount) <= 0) return;
-    setLoading(true);
-    try {
-      const istDate = getISTDate();
-      await addDoc(collection(db, 'expenses'), {
-        userId: user.uid,
-        amount: Number(amount),
-        category,
-        note,
-        timestamp: serverTimestamp(),
-        dateIST: istDate.toISOString(),
-        createdAt: istDate.getTime(),
-        currency,
-        currencyCode,
-        ...(travelMode && currentTrip ? { tripId: currentTrip.id, tripName: currentTrip.name } : {})
-      });
-      setShowSuccess(true); setAmount(''); setNote(''); setCategory(categories[0]);
-      setTimeout(() => { setShowSuccess(false); if (amountInputRef.current) amountInputRef.current.focus(); }, 2000);
-    } catch (e) { alert("Failed to save."); } finally { setLoading(false); }
-  };
-
   return (
-    <motion.div className="flex flex-col w-full max-w-md mx-auto p-6 pt-12">
+    <motion.div className="flex flex-col w-full max-w-md mx-auto p-6 pt-12 safe-area-pt">
       <header className="mb-12">
         <p className="text-foreground/30 font-bold text-[10px] uppercase tracking-widest">TRANSACTION</p>
         <h1 className="text-4xl font-bold font-display tracking-tight">Record</h1>
       </header>
 
-      <form onSubmit={handleSubmit} className="space-y-12">
+      <form onSubmit={(e) => e.preventDefault()} className="space-y-12">
         <div className="relative group text-center">
           <div className="text-primary/20 font-bold text-sm mb-2 uppercase tracking-widest">{currency} Amount</div>
           <input
@@ -97,17 +66,7 @@ const LogExpense = () => {
           <input type="text" placeholder="Add a memo..." value={note} onChange={(e) => setNote(e.target.value)} className="w-full bg-foreground/5 rounded-[24px] py-6 px-8 outline-none border border-foreground/5 font-medium placeholder:text-foreground/20" />
         </div>
 
-        <div className="pt-8">
-          <motion.button
-            layout
-            type="submit"
-            disabled={loading || !amount}
-            whileTap={{ scale: 0.97 }}
-            className={`w-full py-6 rounded-[32px] font-bold text-xl flex items-center justify-center space-x-3 transition-all ${loading || !amount ? 'bg-foreground/5 text-foreground/20' : 'bg-primary text-primary-foreground shadow-2xl shadow-primary/40'}`}
-          >
-            {loading ? <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }} className="w-6 h-6 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full" /> : <><Send className="w-5 h-5" /><span>Confirm Entry</span></>}
-          </motion.button>
-        </div>
+        {/* Removed redundant confirmation button as it is now in the main nav bar */}
       </form>
 
       <AnimatePresence>

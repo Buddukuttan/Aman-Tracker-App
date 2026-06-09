@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { db } from '../lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
@@ -58,7 +58,9 @@ export const SettingsProvider = ({ children }) => {
   });
 
   const { user } = useAuth();
-  const [isBiometricEnrolled, setIsBiometricEnrolled] = useState(false);
+  const [isBiometricEnrolled, setIsBiometricEnrolled] = useState(() => {
+    return localStorage.getItem('kaching_isLocallyEnrolled') === 'true';
+  });
 
   const [trips, setTrips] = useState(() => {
     const saved = localStorage.getItem('kaching_trips');
@@ -68,8 +70,19 @@ export const SettingsProvider = ({ children }) => {
   useEffect(() => {
     const checkBiometrics = async () => {
       if (user) {
-        const credentialDoc = await getDoc(doc(db, "biometric_credentials", user.uid));
-        setIsBiometricEnrolled(credentialDoc.exists());
+        try {
+          console.log("Checking biometric enrollment for:", user.uid);
+          const credentialDoc = await getDoc(doc(db, "biometric_credentials", user.uid));
+          const exists = credentialDoc.exists();
+          setIsBiometricEnrolled(exists);
+          localStorage.setItem('kaching_isLocallyEnrolled', exists);
+          console.log("Biometric enrollment status:", exists);
+        } catch (e) {
+          console.error("Failed to check biometrics:", e);
+        }
+      } else {
+        setIsBiometricEnrolled(false);
+        localStorage.removeItem('kaching_isLocallyEnrolled');
       }
     };
     checkBiometrics();
@@ -86,6 +99,40 @@ export const SettingsProvider = ({ children }) => {
   useEffect(() => {
     localStorage.setItem('kaching_colorScheme', colorScheme);
     document.documentElement.setAttribute('data-theme', colorScheme);
+
+    // Exact mapping of theme background colors for meta tag and body background
+    const themeColors = {
+      qatar: '#1d0a0e',
+      onyx: '#000000',
+      emerald: '#0d1a14',
+      nordic: '#1a202c',
+      champagne: '#f8fafc'
+    };
+
+    const targetColor = themeColors[colorScheme] || themeColors.qatar;
+
+    // Update meta tags for both standard and apple-specific behaviors
+    let metaThemeColor = document.querySelector('meta[name="theme-color"]');
+    if (!metaThemeColor) {
+      metaThemeColor = document.createElement('meta');
+      metaThemeColor.name = "theme-color";
+      document.head.appendChild(metaThemeColor);
+    }
+    metaThemeColor.setAttribute('content', targetColor);
+
+    // Dynamic Status Bar Style for iOS
+    let metaAppleStatus = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+    if (metaAppleStatus) {
+      // Use 'default' (dark icons) for light themes, 'black-translucent' (white icons) for dark themes
+      metaAppleStatus.setAttribute('content', colorScheme === 'champagne' ? 'default' : 'black-translucent');
+    }
+
+    // Apply background color to everything that might be visible behind the app
+    document.documentElement.style.backgroundColor = targetColor;
+    document.body.style.backgroundColor = targetColor;
+
+    const root = document.getElementById('root');
+    if (root) root.style.backgroundColor = targetColor;
   }, [colorScheme]);
 
   useEffect(() => {
@@ -135,7 +182,13 @@ export const SettingsProvider = ({ children }) => {
     localStorage.setItem('kaching_trips', JSON.stringify(trips));
   }, [trips]);
 
-  const startTrip = (name, budget) => {
+  // Force sync between travelMode and currentTrip
+  useEffect(() => {
+    if (currentTrip && !travelMode) setTravelMode(true);
+    if (!currentTrip && travelMode) setTravelMode(false);
+  }, [currentTrip, travelMode]);
+
+  const startTrip = useCallback((name, budget) => {
     const newTrip = {
       id: Date.now().toString(),
       name,
@@ -144,53 +197,62 @@ export const SettingsProvider = ({ children }) => {
     };
     setCurrentTrip(newTrip);
     setTravelMode(true);
-  };
+  }, []);
 
-  const endTrip = (totalSpent) => {
-    if (currentTrip) {
+  const endTrip = useCallback((totalSpent) => {
+    setCurrentTrip(prev => {
+      if (!prev) return null;
+
       const completedTrip = {
-        ...currentTrip,
+        ...prev,
         endDate: new Date().toISOString(),
-        totalSpent
+        totalSpent: Number(totalSpent) || 0
       };
-      setTrips([completedTrip, ...trips]);
-      setCurrentTrip(null);
-      setTravelMode(false);
+
+      setTrips(all => {
+        if (all.some(t => t.id === completedTrip.id)) return all;
+        return [completedTrip, ...all];
+      });
+
+      return null;
+    });
+
+    setTravelMode(false);
+    localStorage.removeItem('kaching_currentTrip');
+  }, []);
+
+  const deleteTrip = useCallback((id) => {
+    setTrips(prev => prev.filter(t => t.id !== id));
+  }, []);
+
+  const addCategory = useCallback((name) => {
+    if (name) {
+      setCategories(prev => prev.includes(name) ? prev : [...prev, name]);
     }
-  };
+  }, []);
 
-  const deleteTrip = (id) => {
-    setTrips(trips.filter(t => t.id !== id));
-  };
+  const removeCategory = useCallback((name) => {
+    setCategories(prev => prev.length > 1 ? prev.filter(c => c !== name) : prev);
+  }, []);
 
-  const addCategory = (name) => {
-    if (name && !categories.includes(name)) setCategories([...categories, name]);
-  };
+  const updateQuickAmount = useCallback((index, amount) => {
+    setQuickAmounts(prev => {
+      const next = [...prev];
+      next[index] = Number(amount);
+      return next;
+    });
+  }, []);
 
-  const removeCategory = (name) => {
-    if (categories.length > 1) setCategories(categories.filter(c => c !== name));
-  };
-
-  const updateQuickAmount = (index, amount) => {
-    const newAmounts = [...quickAmounts];
-    newAmounts[index] = Number(amount);
-    setQuickAmounts(newAmounts);
-  };
-
-  const convertAmount = (amount, fromCode) => {
+  const convertAmount = useCallback((amount, fromCode) => {
     if (!fromCode || fromCode === currencyCode) return amount;
-    // We want to convert FROM fromCode TO currencyCode
-    // The rates we have are based on currencyCode (Base: currencyCode)
-    // So 1 currencyCode = exchangeRates[fromCode] fromCode
-    // amount in fromCode / exchangeRates[fromCode] = amount in currencyCode
     const rate = exchangeRates[fromCode];
     if (rate) {
       return amount / rate;
     }
-    return amount; // Fallback
-  };
+    return amount;
+  }, [currencyCode, exchangeRates]);
 
-  const value = {
+  const value = React.useMemo(() => ({
     categories, addCategory, removeCategory, setCategories,
     quickAmounts, updateQuickAmount,
     colorScheme, setColorScheme,
@@ -204,7 +266,21 @@ export const SettingsProvider = ({ children }) => {
     travelMode, setTravelMode,
     currentTrip, startTrip, endTrip,
     trips, deleteTrip
-  };
+  }), [
+    categories, addCategory, removeCategory, setCategories,
+    quickAmounts, updateQuickAmount,
+    colorScheme, setColorScheme,
+    budgetEnabled, setBudgetEnabled,
+    dailyBudget, setDailyBudget,
+    biometricEnabled, setBiometricEnabled,
+    isBiometricEnrolled, setIsBiometricEnrolled,
+    currency, setCurrency,
+    currencyCode, setCurrencyCode,
+    exchangeRates, convertAmount,
+    travelMode, setTravelMode,
+    currentTrip, startTrip, endTrip,
+    trips, deleteTrip
+  ]);
 
   return (
     <SettingsContext.Provider value={value}>

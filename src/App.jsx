@@ -1,17 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from './context/AuthContext';
 import { SettingsProvider, useSettings } from './context/SettingsContext';
+import { TransactionProvider, useTransaction } from './context/TransactionContext';
 import { verifyBiometrics, isWebAuthnSupported } from './lib/webauthn';
 import LogExpense from './screens/LogExpense';
 import Dashboard from './screens/Dashboard';
 import Settings from './screens/Settings';
 import Login from './screens/Login';
-import { PlusCircle, LayoutDashboard, Settings as SettingsIcon, ShieldCheck, Lock } from 'lucide-react';
+import { PlusCircle, LayoutDashboard, Settings as SettingsIcon, ShieldCheck, Lock, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import ErrorBoundary from './components/ErrorBoundary';
 
 function App() {
   const { user, loading } = useAuth();
   const { biometricEnabled, isBiometricEnrolled } = useSettings();
+  const { amount, submitTransaction, loading: txLoading } = useTransaction();
   const [activeTab, setActiveTab] = useState('log');
   const [isLocked, setIsLocked] = useState(false);
   const [verifying, setVerifying] = useState(false);
@@ -80,7 +83,7 @@ function App() {
   return (
     <div className="h-[100dvh] flex flex-col bg-background text-foreground overflow-hidden font-sans">
       {/* THE MAIN SCROLL CONTAINER */}
-      <main className="flex-1 overflow-y-auto no-scrollbar touch-pan-y relative pb-52">
+      <main className="flex-1 overflow-y-auto no-scrollbar touch-pan-y relative pb-52 safe-area-pt">
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
@@ -97,14 +100,43 @@ function App() {
       </main>
 
       {/* FIXED NAV BAR */}
-      <nav className="fixed bottom-0 left-0 right-0 ios-blur border-t border-foreground/5 safe-area-pb z-50 rounded-t-[40px] shadow-[0_-10px_40px_rgba(0,0,0,0.1)] h-24">
+      <nav className="fixed bottom-0 left-0 right-0 ios-blur border-t border-foreground/5 safe-area-pb z-50 rounded-t-[40px] shadow-[0_-10px_40px_rgba(0,0,0,0.1)] h-28">
         <div className="flex justify-around items-center h-full max-w-md mx-auto px-10">
           <button onClick={() => setActiveTab('dashboard')} className={`flex flex-col items-center space-y-2 transition-all ${activeTab === 'dashboard' ? 'text-primary' : 'text-foreground/20'}`}>
             <div className={`p-2.5 rounded-[16px] transition-all ${activeTab === 'dashboard' ? 'bg-primary/10' : ''}`}><LayoutDashboard className="w-6 h-6" /></div>
             <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Portfolio</span>
           </button>
-          <button onClick={() => setActiveTab('log')} className={`flex flex-col items-center -mt-14`}>
-            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.9 }} className={`p-6 rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.3)] transition-all ${activeTab === 'log' ? 'bg-primary text-primary-foreground shadow-primary/40' : 'bg-background text-foreground/40 border border-foreground/5'}`}><PlusCircle className="w-9 h-9" /></motion.div>
+          <button
+            onClick={async () => {
+              if (activeTab === 'log' && amount && !isNaN(amount) && Number(amount) > 0) {
+                await submitTransaction();
+              } else {
+                setActiveTab('log');
+              }
+            }}
+            className={`flex flex-col items-center -mt-14`}
+          >
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.9 }}
+              className={`p-6 rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.3)] transition-all ${
+                activeTab === 'log' && amount && !isNaN(amount) && Number(amount) > 0
+                  ? 'bg-emerald-500 text-white shadow-emerald-500/40'
+                  : activeTab === 'log'
+                    ? 'bg-primary text-primary-foreground shadow-primary/40'
+                    : 'bg-background text-foreground/40 border border-foreground/5'
+              }`}
+            >
+              {activeTab === 'log' && amount && !isNaN(amount) && Number(amount) > 0 ? (
+                txLoading ? (
+                  <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }} className="w-9 h-9 border-2 border-white/30 border-t-white rounded-full" />
+                ) : (
+                  <CheckCircle2 className="w-9 h-9" />
+                )
+              ) : (
+                <PlusCircle className="w-9 h-9" />
+              )}
+            </motion.div>
           </button>
           <button onClick={() => setActiveTab('settings')} className={`flex flex-col items-center space-y-2 transition-all ${activeTab === 'settings' ? 'text-primary' : 'text-foreground/20'}`}>
             <div className={`p-2.5 rounded-[16px] transition-all ${activeTab === 'settings' ? 'bg-primary/10' : ''}`}><SettingsIcon className="w-6 h-6" /></div>
@@ -116,5 +148,13 @@ function App() {
   );
 }
 
-const AppWrapper = () => (<SettingsProvider><App /></SettingsProvider>);
+const AppWrapper = () => (
+  <ErrorBoundary>
+    <SettingsProvider>
+      <TransactionProvider>
+        <App />
+      </TransactionProvider>
+    </SettingsProvider>
+  </ErrorBoundary>
+);
 export default AppWrapper;

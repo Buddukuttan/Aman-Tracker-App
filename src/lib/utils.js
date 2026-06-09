@@ -4,9 +4,17 @@ const IST_TIMEZONE = 'Asia/Kolkata';
 
 export const getISTDate = () => toZonedTime(new Date(), IST_TIMEZONE);
 
+export const parseSafeDate = (dateVal) => {
+  if (!dateVal) return new Date();
+  if (dateVal.toDate && typeof dateVal.toDate === 'function') return dateVal.toDate();
+  const d = new Date(dateVal);
+  return isNaN(d.getTime()) ? new Date() : d;
+};
+
 export const formatIST = (date, formatStr = 'yyyy-MM-dd HH:mm:ss') => {
   if (!date) return '-';
-  return format(toZonedTime(date, IST_TIMEZONE), formatStr, { timeZone: IST_TIMEZONE });
+  const d = parseSafeDate(date);
+  return format(toZonedTime(d, IST_TIMEZONE), formatStr, { timeZone: IST_TIMEZONE });
 };
 
 export const getISTBoundaries = () => {

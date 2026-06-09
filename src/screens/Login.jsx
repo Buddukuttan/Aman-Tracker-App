@@ -59,6 +59,9 @@ const Login = () => {
         <p className="text-[10px] text-foreground/30 uppercase tracking-[0.2em] font-bold">
           Secure Login via Firebase
         </p>
+        <div className="pt-8">
+           <p className="text-[11px] text-foreground/20 font-medium">Biometric security can be configured<br/>in the configuration suite after login.</p>
+        </div>
       </div>
     </div>
   );
